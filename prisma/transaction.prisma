@@ -1,0 +1,42 @@
+// prisma/models/transaction.prisma
+
+model Transaction {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  amount          Float
+  type            TransactionType @default(EXPENSE)
+  description     String?
+  date            DateTime        @default(now())
+  notes           String?
+  
+  // Relationships
+  userId          String          @db.ObjectId
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId      String?         @db.ObjectId
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  accountId       String?         @db.ObjectId
+  account         Account?        @relation(fields: [accountId], references: [id])
+  recurringTxnId  String?         @db.ObjectId
+  recurringTxn    RecurringTransaction? @relation(fields: [recurringTxnId], references: [id])
+  attachments     Attachment[]
+  tags            TransactionTag[]
+  auditLogs       AuditLog[]
+  
+  // Indexes
+  @@index([userId])
+  @@index([date])
+  @@index([categoryId])
+  @@index([accountId])
+  @@index([type])
+  @@map("transactions")
+}
+
+// Junction table for Transaction-Tag many-to-many
+model TransactionTag {
+  transactionId String      @db.ObjectId
+  tagId         String      @db.ObjectId
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([transactionId, tagId])
+  @@map("transaction_tags")
+}

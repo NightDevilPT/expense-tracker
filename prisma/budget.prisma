@@ -1,0 +1,26 @@
+// prisma/models/budget.prisma
+
+model Budget {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  amount         Float
+  period         BudgetPeriod @default(MONTHLY)
+  startDate      DateTime     @default(now())
+  endDate        DateTime?
+  alertThreshold Float        @default(80)
+  rollover       Boolean      @default(false)
+  
+  // Computed fields (stored for performance)
+  spent          Float        @default(0)
+  remaining      Float        @default(0)
+  
+  // Relationships
+  userId         String       @db.ObjectId
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String?      @db.ObjectId
+  category       Category?    @relation(fields: [categoryId], references: [id])
+  
+  @@unique([userId, categoryId, period, startDate])
+  @@index([userId])
+  @@index([categoryId])
+  @@map("budgets")
+}

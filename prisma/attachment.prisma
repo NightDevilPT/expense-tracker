@@ -1,0 +1,22 @@
+// prisma/models/attachment.prisma
+
+model Attachment {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  url           String
+  thumbnailUrl  String?
+  uploadedAt    DateTime @default(now())
+  
+  // Relationships
+  transactionId String   @db.ObjectId
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  userId        String   @db.ObjectId
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([transactionId])
+  @@index([userId])
+  @@map("attachments")
+}

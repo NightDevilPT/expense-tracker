@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Import all model files
+// Note: Prisma doesn't support file imports natively
+// You need to copy content of all files into one schema.prisma
+// This structure is for organization during development
+
+// ============================================
+// ENUMS
+// ============================================
+// Copy content from enums/enums.prisma
+
+// ============================================
+// MODELS
+// ============================================
+// Copy content from:
+// models/user.prisma
+// models/transaction.prisma
+// models/category.prisma
+// models/budget.prisma
+// models/savingsGoal.prisma
+// models/recurringTransaction.prisma
+// models/account.prisma
+// models/tag.prisma
+// models/attachment.prisma
+// models/auditLog.prisma
+// models/exportHistory.prisma
+// models/notification.prisma
+// models/userPreference.prisma

@@ -1,0 +1,58 @@
+// prisma/enums/enums.prisma
+
+// ==================== ENUMS ====================
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum BudgetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum SavingsGoalStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// AccountType is now a TABLE, not an enum
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  EXPORT
+  LOGIN
+  LOGOUT
+  SETTINGS_CHANGE
+  BUDGET_ALERT
+  GOAL_MILESTONE
+}
+
+enum NotificationType {
+  BUDGET_ALERT
+  GOAL_MILESTONE
+  RECURRING_REMINDER
+  SYSTEM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}

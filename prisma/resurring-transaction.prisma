@@ -1,0 +1,29 @@
+// prisma/models/recurringTransaction.prisma
+
+model RecurringTransaction {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  amount      Float
+  type        TransactionType    @default(EXPENSE)
+  frequency   RecurringFrequency @default(MONTHLY)
+  interval    Int                @default(1)
+  startDate   DateTime           @default(now())
+  endDate     DateTime?
+  nextDueDate DateTime
+  isActive    Boolean            @default(true)
+  description String?
+  
+  // Relationships
+  userId      String             @db.ObjectId
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String?            @db.ObjectId
+  category    Category?          @relation(fields: [categoryId], references: [id])
+  accountId   String?            @db.ObjectId
+  account     Account?           @relation(fields: [accountId], references: [id])
+  transactions Transaction[]
+  
+  @@index([userId])
+  @@index([nextDueDate])
+  @@index([isActive])
+  @@map("recurring_transactions")
+}

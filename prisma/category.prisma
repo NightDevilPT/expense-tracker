@@ -1,0 +1,23 @@
+// prisma/models/category.prisma
+
+model Category {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        TransactionType @default(EXPENSE)
+  icon        String?
+  color       String?
+  isDefault   Boolean  @default(false)
+  order       Int      @default(0)
+  
+  // Relationships
+  userId      String?  @db.ObjectId
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets     Budget[]
+  savingsGoals SavingsGoal[]
+  recurringTxns RecurringTransaction[]
+  
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("categories")
+}
