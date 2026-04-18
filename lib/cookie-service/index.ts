@@ -1,4 +1,5 @@
 // lib/cookie-service.ts
+
 import { NextApiResponse } from "next";
 import jwt from "jsonwebtoken";
 
@@ -16,7 +17,7 @@ export interface TokenResponse {
 export interface DecodedToken {
 	id: string;
 	email: string;
-	name?: string;
+	name: string; // Changed from optional to required
 	type: "access" | "refresh";
 	iat: number;
 	exp: number;
@@ -24,7 +25,11 @@ export interface DecodedToken {
 
 export class CookieService {
 	// Generate tokens
-	static generateTokens(payload: Record<string, any>): TokenResponse {
+	static generateTokens(payload: {
+		id: string;
+		email: string;
+		name: string;
+	}): TokenResponse {
 		const accessToken = jwt.sign(
 			{ ...payload, type: "access" },
 			JWT_SECRET,

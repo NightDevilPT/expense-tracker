@@ -1,8 +1,15 @@
 // lib/user-service/index.ts
 
 import { prisma } from "@/lib/prisma";
-import { RequestOtpInput, LoginOtpInput } from "./validation";
+import {
+	RequestOtpInput,
+	LoginOtpInput,
+	validateUserId,
+	validateUpdateUser,
+	type UpdateUserInput,
+} from "./validation";
 import { Logger } from "@/lib/logger-service";
+import { SafeUserProfile } from "./types";
 
 const logger = new Logger("USER-SERVICE");
 
@@ -15,10 +22,11 @@ export async function requestOtp(data: RequestOtpInput) {
 	const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 	const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-	logger.debug("Generated OTP", { 
-		email, 
-		otpCode: process.env.NODE_ENV === "development" ? otpCode : "***HIDDEN***",
-		expiresAt 
+	logger.debug("Generated OTP", {
+		email,
+		otpCode:
+			process.env.NODE_ENV === "development" ? otpCode : "***HIDDEN***",
+		expiresAt,
 	});
 
 	// Use transaction to ensure atomicity
@@ -36,9 +44,9 @@ export async function requestOtp(data: RequestOtpInput) {
 			},
 		});
 
-		logger.debug("Marked existing OTPs as deleted", { 
-			email, 
-			deletedCount: deleteResult.count 
+		logger.debug("Marked existing OTPs as deleted", {
+			email,
+			deletedCount: deleteResult.count,
 		});
 
 		// Create new OTP session
@@ -50,27 +58,25 @@ export async function requestOtp(data: RequestOtpInput) {
 			},
 		});
 
-		logger.info("New OTP session created", { 
-			email, 
+		logger.info("New OTP session created", {
+			email,
 			otpId: otpSession.id,
-			expiresAt: otpSession.expiresAt 
+			expiresAt: otpSession.expiresAt,
 		});
 
 		return otpSession;
 	});
 
-	logger.info("OTP request completed successfully", { 
-		email, 
+	logger.info("OTP request completed successfully", {
+		email,
 		otpId: result.id,
-		expiresAt: result.expiresAt 
+		expiresAt: result.expiresAt,
 	});
 
 	return {
 		email,
 		otpId: result.id,
 		expiresAt: result.expiresAt,
-		// Note: In production, send OTP via email service
-		// For development, you might return the OTP (remove in production)
 		otpCode: process.env.NODE_ENV === "development" ? otpCode : undefined,
 	};
 }
@@ -97,33 +103,33 @@ export async function loginOtp(data: LoginOtpInput) {
 		});
 
 		if (!otpSession) {
-			logger.warn("Invalid or expired OTP attempted", { 
-				email, 
+			logger.warn("Invalid or expired OTP attempted", {
+				email,
 				otp: "***HIDDEN***",
-				reason: "OTP not found or expired" 
+				reason: "OTP not found or expired",
 			});
-			throw new Error("Invalid or expired OTP");
+			throw new Error("INVALID_OTP");
 		}
 
-		logger.debug("Valid OTP session found", { 
-			email, 
+		logger.debug("Valid OTP session found", {
+			email,
 			otpId: otpSession.id,
 			createdAt: otpSession.createdAt,
-			expiresAt: otpSession.expiresAt 
+			expiresAt: otpSession.expiresAt,
 		});
 
 		// Mark OTP as verified
 		await tx.oTPSession.update({
 			where: { id: otpSession.id },
-			data: { 
+			data: {
 				verifiedAt: new Date(),
 				deletedAt: new Date(), // Mark as used
 			},
 		});
 
-		logger.info("OTP marked as verified and used", { 
-			email, 
-			otpId: otpSession.id 
+		logger.info("OTP marked as verified and used", {
+			email,
+			otpId: otpSession.id,
 		});
 
 		// Find or create user
@@ -143,30 +149,117 @@ export async function loginOtp(data: LoginOtpInput) {
 				},
 			});
 
-			logger.info("New user created successfully", { 
-				email, 
+			logger.info("New user created successfully", {
+				email,
 				userId: user.id,
-				name: user.name 
+				name: user.name,
 			});
 		} else {
-			logger.debug("Existing user found for OTP login", { 
-				email, 
+			logger.debug("Existing user found for OTP login", {
+				email,
 				userId: user.id,
-				name: user.name 
+				name: user.name,
 			});
 		}
 
 		return { user, otpSession };
 	});
 
-	logger.info("OTP login completed successfully", { 
-		email, 
+	logger.info("OTP login completed successfully", {
+		email,
 		userId: result.user.id,
-		otpId: result.otpSession.id 
+		otpId: result.otpSession.id,
 	});
 
 	return {
 		user: result.user,
 		otpId: result.otpSession.id,
 	};
+}
+
+export async function getUserProfileById(
+	userId: string,
+): Promise<SafeUserProfile> {
+	logger.info("Fetching user profile", { userId });
+
+	// Validate input
+	validateUserId(userId);
+
+	// Fetch user without password hash
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: {
+			id: true,
+			email: true,
+			name: true,
+			avatar: true,
+			currency: true,
+			theme: true,
+			firstDayOfWeek: true,
+			dateFormat: true,
+			numberFormat: true,
+			emailNotifications: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+
+	if (!user) {
+		logger.warn("User not found", { userId });
+		throw new Error("NOT_FOUND");
+	}
+
+	logger.info("User profile fetched successfully", { userId: user.id });
+	return user;
+}
+
+// ADD THIS FUNCTION - Update user profile
+export async function updateUserProfile(
+	userId: string,
+	updateData: UpdateUserInput,
+): Promise<SafeUserProfile> {
+	logger.info("Updating user profile", {
+		userId,
+		updates: Object.keys(updateData),
+	});
+
+	// Validate input
+	validateUserId(userId);
+	const validatedData = validateUpdateUser(updateData);
+
+	// Check if user exists
+	const existingUser = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { id: true },
+	});
+
+	if (!existingUser) {
+		logger.warn("User not found for update", { userId });
+		throw new Error("NOT_FOUND");
+	}
+
+	// Update user
+	const updatedUser = await prisma.user.update({
+		where: { id: userId },
+		data: validatedData,
+		select: {
+			id: true,
+			email: true,
+			name: true,
+			avatar: true,
+			currency: true,
+			theme: true,
+			firstDayOfWeek: true,
+			dateFormat: true,
+			numberFormat: true,
+			emailNotifications: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+
+	logger.info("User profile updated successfully", {
+		userId: updatedUser.id,
+	});
+	return updatedUser;
 }

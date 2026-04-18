@@ -1,8 +1,12 @@
+---
+trigger: always_on
+---
+
 # Backend Rulebook — Next.js App Router API
 
-> **Version:** 2.1  
-> **Routing:** App Router (`app/api/`) with named method exports  
-> **Stack:** Next.js · Prisma · Zod · JWT (CookieService) · Logger · ResponseService
+> **Version:** 3.1
+> **Routing:** App Router (`app/api/`) with named method exports
+> **Stack:** Next.js · Prisma · Zod · JWT (CookieService) · Logger · ResponseService (format-based)
 
 ---
 
@@ -10,12 +14,12 @@
 
 1. [Project Structure](#1-project-structure)
 2. [File Responsibilities](#2-file-responsibilities)
-3. [Route File Rules (Controller)](#3-route-file-rules-controller)
-4. [Lib Feature File Rules (Business Logic)](#4-lib-feature-file-rules-business-logic)
-5. [Response Format Rules](#5-response-format-rules)
+3. [Response Service Pattern](#3-response-service-pattern)
+4. [Route File Rules (Controller)](#4-route-file-rules-controller)
+5. [Lib Feature File Rules (Business Logic)](#5-lib-feature-file-rules-business-logic)
 6. [Logging Rules](#6-logging-rules)
 7. [Authentication Rules](#7-authentication-rules)
-8. [Error Handling Rules](#8-error-handling-rules)
+8. [Error Handling Contract](#8-error-handling-contract)
 9. [Quick Reference Cheatsheet](#9-quick-reference-cheatsheet)
 
 ---
@@ -25,236 +29,416 @@
 ```
 app/
   api/
+    auth/
+      login/
+        route.ts              ← Controller (HTTP layer only)
+      request-otp/
+        route.ts              ← Controller (HTTP layer only)
     <feature>/
-      route.ts              ← Controller only (HTTP layer)
+      route.ts                ← Non-dynamic controller
       [id]/
-        route.ts            ← Dynamic route with awaited params
+        route.ts              ← Dynamic route — always await params
 
 lib/
-  <feature>/
-    index.ts                ← Business logic + Prisma calls
-    types.ts                ← TypeScript interfaces & types (OUTPUT types only)
-    validation.ts           ← Zod schemas + validation functions + INPUT types
+  <feature>-service/          ← Feature folder naming: <n>-service
+    index.ts                  ← Business logic + Prisma calls
+    types.ts                  ← Output types only (database/model interfaces)
+    validation.ts             ← Zod schemas + validation functions + input types
 
   cookie-service/
-    index.ts                ← JWT token generation & validation
+    index.ts                  ← JWT generation & validation
 
   logger-service/
-    index.ts                ← Structured console logger
+    index.ts                  ← Structured console logger
 
   response-service/
-    index.ts                ← Standardised API response helpers
+    index.ts                  ← Format helpers (return plain objects, not NextResponse)
 
 interface/
-  api.interface.ts          ← Shared API response types
+  api.interface.ts            ← Shared API response types
 ```
 
 ---
 
 ## 2. File Responsibilities
 
-| Layer                | File                            | Responsibility                                                         |
-| -------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| **Controller**       | `app/api/<feature>/route.ts`    | Parse request, call validation, call service, send response, log       |
-| **Business Logic**   | `lib/<feature>/index.ts`        | Prisma queries, data transformation, throw named errors                |
-| **Types**            | `lib/<feature>/types.ts`        | **OUTPUT types only** — TypeScript interfaces for database/models      |
-| **Validation**       | `lib/<feature>/validation.ts`   | Zod schemas, validation functions, **INPUT types** (inferred from Zod) |
-| **Cookie Service**   | `lib/cookie-service/index.ts`   | Token generation, validation, setting/clearing cookies                 |
-| **Logger**           | `lib/logger-service/index.ts`   | Structured console log output                                          |
-| **Response Service** | `lib/response-service/index.ts` | Shape and send HTTP response                                           |
+| Layer                | File                                  | Responsibility                                                         |
+| -------------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| **Controller**       | `app/api/<feature>/route.ts`          | Parse request, validate, call service, format + return response, log   |
+| **Business Logic**   | `lib/<feature>-service/index.ts`      | Prisma queries, data transformation, throw named errors                |
+| **Types**            | `lib/<feature>-service/types.ts`      | **Output types ONLY** — interfaces for database/model shapes           |
+| **Validation**       | `lib/<feature>-service/validation.ts` | Zod schemas, validation functions, **input types** (inferred from Zod) |
+| **Cookie Service**   | `lib/cookie-service/index.ts`         | Token generation, validation, payload extraction                       |
+| **Logger**           | `lib/logger-service/index.ts`         | Structured coloured console output                                     |
+| **Response Service** | `lib/response-service/index.ts`       | Returns plain response objects — **does NOT create NextResponse**      |
 
-**Hard rules:**
+### Hard Rules
 
 - Route files must **never** contain Prisma calls.
-- Service files must **never** import `NextRequest` or response helpers.
-- Response helpers must **always** be called from the route file.
-- Validation must **always** be done with Zod in `validation.ts`.
-- **`types.ts` contains ONLY output types (what comes from database).**
-- **`validation.ts` contains schemas, validation functions, AND input types.**
+- Service files (`lib/`) must **never** import `NextRequest`, `NextResponse`, or response helpers.
+- Response helpers **return plain objects** — `NextResponse.json()` is always called in the **route file**.
+- Validation must **always** use Zod in `validation.ts`.
+- `types.ts` contains **only output types** (from database/models).
+- `validation.ts` contains schemas, validation functions, **and input types**.
 
 ---
 
-## 3. Route File Rules (Controller)
+## 3. Response Service Pattern
 
-### 3.1 Structure — Non-Dynamic Route
+> **Critical:** This project uses a **format-then-respond** pattern. Response helpers return **plain objects**, not `NextResponse`. The route file is always responsible for calling `NextResponse.json(response, { status })`.
 
-Use named `export async function` for each HTTP method. Each handler receives `req: NextRequest` and `res: NextApiResponse`.
+### 3.1 startTime Pattern
+
+Every route handler must record `startTime` at the top. This is passed to every format helper for execution time tracking.
+
+```ts
+const startTime = Date.now();
+```
+
+### 3.2 Format Helper Signatures
+
+```ts
+// Success
+formatSuccess(data, startTime, { message?, pagination? })   → ApiSuccessResponse
+formatPaginated(data, startTime, pagination, message?)      → ApiSuccessResponse
+
+// Errors
+formatBadRequest(startTime, message, details?)              → ApiErrorResponse
+formatUnauthorized(startTime, message, details?)            → ApiErrorResponse
+formatForbidden(startTime, message, details?)               → ApiErrorResponse
+formatNotFound(startTime, message, details?)                → ApiErrorResponse
+formatConflict(startTime, message, details?)                → ApiErrorResponse
+formatTooManyRequests(startTime, message, details?)         → ApiErrorResponse
+formatInternalError(startTime, message, details?)           → ApiErrorResponse
+```
+
+### 3.3 Usage Pattern in Route
+
+```ts
+// ✅ Correct — format then respond
+const response = formatSuccess({ user: userData }, startTime, {
+	message: "Login successful",
+});
+return NextResponse.json(response, { status: HttpStatus.OK });
+
+// ✅ Correct — error path
+const response = formatBadRequest(startTime, "Invalid OTP format");
+return NextResponse.json(response, { status: HttpStatus.BAD_REQUEST });
+
+// ❌ Wrong — never call res.status().json() directly
+// ❌ Wrong — never pass res to format helpers
+```
+
+### 3.4 HttpStatus Constants
+
+Always use `HttpStatus` constants — never hard-code status numbers.
+
+```ts
+import { HttpStatus } from "@/lib/response-service";
+
+HttpStatus.OK; // 200
+HttpStatus.CREATED; // 201
+HttpStatus.BAD_REQUEST; // 400
+HttpStatus.UNAUTHORIZED; // 401
+HttpStatus.FORBIDDEN; // 403
+HttpStatus.NOT_FOUND; // 404
+HttpStatus.CONFLICT; // 409
+HttpStatus.TOO_MANY_REQUESTS; // 429
+HttpStatus.INTERNAL_SERVER_ERROR; // 500
+```
+
+### 3.5 When to Use Which Helper
+
+| Situation                  | Helper                                | Status |
+| -------------------------- | ------------------------------------- | ------ |
+| Successful fetch or update | `formatSuccess`                       | 200    |
+| Resource created           | `formatSuccess` with `CREATED` status | 201    |
+| List with pagination       | `formatPaginated`                     | 200    |
+| Zod / validation fails     | `formatBadRequest`                    | 400    |
+| Invalid body or params     | `formatBadRequest`                    | 400    |
+| Missing or invalid token   | `formatUnauthorized`                  | 401    |
+| Valid token, no permission | `formatForbidden`                     | 403    |
+| Record not found           | `formatNotFound`                      | 404    |
+| Duplicate / already exists | `formatConflict`                      | 409    |
+| Rate limit hit             | `formatTooManyRequests`               | 429    |
+| Unexpected server error    | `formatInternalError`                 | 500    |
+
+---
+
+## 4. Route File Rules (Controller)
+
+### 4.1 Structure — Non-Dynamic Route
+
+Use `export async function` named exports directly for each HTTP method.
 
 ```ts
 // app/api/<feature>/route.ts
 
-import { NextRequest } from "next/server";
-import { NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 import { Logger } from "@/lib/logger-service";
 import { CookieService } from "@/lib/cookie-service";
 import {
-	sendSuccess,
-	sendCreated,
-	sendBadRequest,
-	sendUnauthorized,
-	sendInternalError,
+	formatSuccess,
+	formatBadRequest,
+	formatUnauthorized,
+	formatConflict,
+	formatInternalError,
+	HttpStatus,
 } from "@/lib/response-service";
-import { getAllFeatures, createFeature } from "@/lib/<feature>";
-import { validateCreateFeature } from "@/lib/<feature>/validation";
+import { getAllFeatures, createFeature } from "@/lib/<feature>-service";
+import { validateCreateFeature } from "@/lib/<feature>-service/validation";
 
-const logger = new Logger("<FEATURE>");
+const logger = new Logger("FEATURE");
 
-function getAuthUser(req: NextRequest) {
-	const accessToken = req.cookies.get("accessToken")?.value;
-	const refreshToken = req.cookies.get("refreshToken")?.value;
-	return CookieService.validateTokens(accessToken, refreshToken);
-}
+export async function GET(req: NextRequest) {
+	const startTime = Date.now();
 
-export async function GET(req: NextRequest, res: NextApiResponse) {
 	try {
 		logger.info("GET /api/<feature> called");
 
-		const user = getAuthUser(req);
+		const accessToken = req.cookies.get("accessToken")?.value;
+		const refreshToken = req.cookies.get("refreshToken")?.value;
+		const user = CookieService.validateTokens(accessToken, refreshToken);
+
 		if (!user) {
 			logger.warn("Unauthorized GET /api/<feature>");
-			return sendUnauthorized(res, "Authentication required");
+			const response = formatUnauthorized(
+				startTime,
+				"Authentication required",
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.UNAUTHORIZED,
+			});
 		}
 
 		const data = await getAllFeatures(user.id);
 		logger.info("Fetched successfully", { count: data.length });
-		sendSuccess(res, data, "Fetched successfully");
-	} catch (error) {
+
+		const response = formatSuccess(data, startTime, {
+			message: "Fetched successfully",
+		});
+		return NextResponse.json(response, { status: HttpStatus.OK });
+	} catch (error: any) {
 		logger.error("GET /api/<feature> failed", error);
-		sendInternalError(res, "Failed to fetch");
+		const response = formatInternalError(startTime, "Failed to fetch");
+		return NextResponse.json(response, {
+			status: HttpStatus.INTERNAL_SERVER_ERROR,
+		});
 	}
 }
 
-export async function POST(req: NextRequest, res: NextApiResponse) {
+export async function POST(req: NextRequest) {
+	const startTime = Date.now();
+
 	try {
 		logger.info("POST /api/<feature> called");
 
-		const user = getAuthUser(req);
+		const accessToken = req.cookies.get("accessToken")?.value;
+		const refreshToken = req.cookies.get("refreshToken")?.value;
+		const user = CookieService.validateTokens(accessToken, refreshToken);
+
 		if (!user) {
 			logger.warn("Unauthorized POST /api/<feature>");
-			return sendUnauthorized(res, "Authentication required");
+			const response = formatUnauthorized(
+				startTime,
+				"Authentication required",
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.UNAUTHORIZED,
+			});
 		}
 
 		const body = await req.json();
-
-		// Validate with Zod — throws if invalid
-		const validatedData = validateCreateFeature(body);
+		const validatedData = validateCreateFeature(body); // Throws ZodError if invalid
 
 		const created = await createFeature({
 			...validatedData,
 			userId: user.id,
 		});
-
 		logger.info("Created successfully", { id: created.id });
-		sendCreated(res, created, "Created successfully");
+
+		const response = formatSuccess(created, startTime, {
+			message: "Created successfully",
+		});
+		return NextResponse.json(response, { status: HttpStatus.CREATED });
 	} catch (error: any) {
 		logger.error("POST /api/<feature> failed", error);
 
-		if (error.message?.includes("Validation")) {
-			return sendBadRequest(res, error.message);
+		if (
+			error.name === "ZodError" ||
+			error.message?.includes("Validation")
+		) {
+			const response = formatBadRequest(
+				startTime,
+				error.errors?.[0]?.message || error.message,
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.BAD_REQUEST,
+			});
 		}
 
-		sendInternalError(res, "Failed to create");
+		if (error.message === "ALREADY_EXISTS") {
+			const response = formatConflict(
+				startTime,
+				"Resource already exists",
+			);
+			return NextResponse.json(response, { status: HttpStatus.CONFLICT });
+		}
+
+		const response = formatInternalError(startTime, "Failed to create");
+		return NextResponse.json(response, {
+			status: HttpStatus.INTERNAL_SERVER_ERROR,
+		});
 	}
 }
 ```
 
-### 3.2 Structure — Dynamic Route (`[id]`)
+### 4.2 Structure — Dynamic Route (`[id]`)
 
-In the App Router, route segment params arrive as a **Promise** — always `await params` before accessing any value.
+> In the App Router, route segment params arrive as a **Promise**. Always `await params` before accessing any value.
 
 ```ts
 // app/api/<feature>/[id]/route.ts
 
-import { NextRequest } from "next/server";
-import { NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 import { Logger } from "@/lib/logger-service";
 import { CookieService } from "@/lib/cookie-service";
 import {
-	sendSuccess,
-	sendUnauthorized,
-	sendNotFound,
-	sendBadRequest,
-	sendInternalError,
+	formatSuccess,
+	formatBadRequest,
+	formatUnauthorized,
+	formatNotFound,
+	formatInternalError,
+	HttpStatus,
 } from "@/lib/response-service";
-import { getFeatureById, deleteFeature } from "@/lib/<feature>";
-import { validateId } from "@/lib/<feature>/validation";
+import { getFeatureById, deleteFeature } from "@/lib/<feature>-service";
+import { validateId } from "@/lib/<feature>-service/validation";
 
-const logger = new Logger("<FEATURE>");
+const logger = new Logger("FEATURE");
 
-function getAuthUser(req: NextRequest) {
-	const accessToken = req.cookies.get("accessToken")?.value;
-	const refreshToken = req.cookies.get("refreshToken")?.value;
-	return CookieService.validateTokens(accessToken, refreshToken);
-}
-
-// ✅ params is a Promise in App Router — must be awaited
+// ✅ params is a Promise in App Router — must always be awaited
 export async function GET(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> },
-	res: NextApiResponse,
 ) {
+	const startTime = Date.now();
+
 	try {
 		const { id } = await params;
 		logger.info("GET /api/<feature>/[id] called", { id });
 
-		const user = getAuthUser(req);
+		const accessToken = req.cookies.get("accessToken")?.value;
+		const refreshToken = req.cookies.get("refreshToken")?.value;
+		const user = CookieService.validateTokens(accessToken, refreshToken);
+
 		if (!user) {
 			logger.warn("Unauthorized GET /api/<feature>/[id]");
-			return sendUnauthorized(res, "Authentication required");
+			const response = formatUnauthorized(
+				startTime,
+				"Authentication required",
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.UNAUTHORIZED,
+			});
 		}
 
-		// Validate ID with Zod — throws if invalid
-		validateId(id);
+		validateId(id); // Throws ZodError if invalid UUID
 
 		const item = await getFeatureById(id, user.id);
-		sendSuccess(res, item, "Fetched successfully");
+		logger.info("Fetched successfully", { id });
+
+		const response = formatSuccess(item, startTime, {
+			message: "Fetched successfully",
+		});
+		return NextResponse.json(response, { status: HttpStatus.OK });
 	} catch (error: any) {
 		logger.error("GET /api/<feature>/[id] failed", error);
-		if (error.message === "NOT_FOUND")
-			return sendNotFound(res, "Resource not found");
+
+		if (error.message === "NOT_FOUND") {
+			const response = formatNotFound(startTime, "Resource not found");
+			return NextResponse.json(response, {
+				status: HttpStatus.NOT_FOUND,
+			});
+		}
 		if (
-			error.message?.includes("Validation") ||
+			error.name === "ZodError" ||
 			error.message?.includes("Invalid ID")
 		) {
-			return sendBadRequest(res, error.message);
+			const response = formatBadRequest(
+				startTime,
+				error.errors?.[0]?.message || error.message,
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.BAD_REQUEST,
+			});
 		}
-		sendInternalError(res, "Failed to fetch");
+
+		const response = formatInternalError(startTime, "Failed to fetch");
+		return NextResponse.json(response, {
+			status: HttpStatus.INTERNAL_SERVER_ERROR,
+		});
 	}
 }
 
 export async function DELETE(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> },
-	res: NextApiResponse,
 ) {
+	const startTime = Date.now();
+
 	try {
 		const { id } = await params;
 		logger.info("DELETE /api/<feature>/[id] called", { id });
 
-		const user = getAuthUser(req);
+		const accessToken = req.cookies.get("accessToken")?.value;
+		const refreshToken = req.cookies.get("refreshToken")?.value;
+		const user = CookieService.validateTokens(accessToken, refreshToken);
+
 		if (!user) {
 			logger.warn("Unauthorized DELETE /api/<feature>/[id]");
-			return sendUnauthorized(res, "Authentication required");
+			const response = formatUnauthorized(
+				startTime,
+				"Authentication required",
+			);
+			return NextResponse.json(response, {
+				status: HttpStatus.UNAUTHORIZED,
+			});
 		}
 
 		validateId(id);
-
 		await deleteFeature(id, user.id);
-		sendSuccess(res, null, "Deleted successfully");
+		logger.info("Deleted successfully", { id });
+
+		const response = formatSuccess(null, startTime, {
+			message: "Deleted successfully",
+		});
+		return NextResponse.json(response, { status: HttpStatus.OK });
 	} catch (error: any) {
 		logger.error("DELETE /api/<feature>/[id] failed", error);
-		if (error.message === "NOT_FOUND")
-			return sendNotFound(res, "Resource not found");
+
+		if (error.message === "NOT_FOUND") {
+			const response = formatNotFound(startTime, "Resource not found");
+			return NextResponse.json(response, {
+				status: HttpStatus.NOT_FOUND,
+			});
+		}
 		if (
 			error.name === "ZodError" ||
 			error.message?.includes("Invalid ID")
 		) {
-			return sendBadRequest(
-				res,
+			const response = formatBadRequest(
+				startTime,
 				error.errors?.[0]?.message || error.message,
 			);
+			return NextResponse.json(response, {
+				status: HttpStatus.BAD_REQUEST,
+			});
 		}
-		sendInternalError(res, "Failed to delete");
+
+		const response = formatInternalError(startTime, "Failed to delete");
+		return NextResponse.json(response, {
+			status: HttpStatus.INTERNAL_SERVER_ERROR,
+		});
 	}
 }
 ```
@@ -267,52 +451,62 @@ export async function DELETE(
 > 	req: NextRequest,
 > 	{ params }: { params: { id: string } },
 > ) {
-> 	const { id } = params;
+> 	const { id } = params; // ❌
 > }
 > ```
 
-### 3.3 Response Helper Signatures
+### 4.3 Setting Cookies in Response (Login Flow)
 
-All helpers take `res: NextApiResponse` as the **first argument** and return `void`. They call `res.status().json()` internally.
+When a route needs to set cookies (e.g., after login), create a `NextResponse` from the formatted response object first, then attach cookies:
 
 ```ts
-sendSuccess(res, data, message?, statusCode?, meta?)
-sendError(res, code, message, statusCode?, details?, meta?)
-sendPaginatedSuccess(res, data, pagination, message?, statusCode?)
-sendCreated(res, data, message?, meta?)
-sendNoContent(res)
-sendBadRequest(res, message?, details?)
-sendUnauthorized(res, message?, details?)
-sendForbidden(res, message?, details?)
-sendNotFound(res, message?, details?)
-sendConflict(res, message?, details?)
-sendTooManyRequests(res, message?, details?)
-sendInternalError(res, message?, details?)
+const response = formatSuccess({ user: userData }, startTime, {
+	message: "Login successful",
+});
+
+const nextResponse = NextResponse.json(response, { status: HttpStatus.OK });
+
+nextResponse.cookies.set("accessToken", tokens.accessToken, {
+	httpOnly: true,
+	path: "/",
+	maxAge: 10 * 60, // 10 minutes
+	sameSite: "lax",
+	secure: process.env.NODE_ENV === "production",
+});
+
+nextResponse.cookies.set("refreshToken", tokens.refreshToken, {
+	httpOnly: true,
+	path: "/",
+	maxAge: 12 * 60, // 12 minutes
+	sameSite: "lax",
+	secure: process.env.NODE_ENV === "production",
+});
+
+return nextResponse;
 ```
 
 ---
 
-## 4. Lib Feature File Rules (Business Logic)
+## 5. Lib Feature File Rules (Business Logic)
 
-Every feature folder under `lib/` contains exactly three files:
+Every service folder under `lib/` contains exactly three files:
 
 ```
-lib/<feature>/
-  types.ts          ← OUTPUT types only (database/model interfaces)
-  validation.ts     ← Zod schemas + validation functions + INPUT types
-  index.ts          ← Prisma calls and business logic
+lib/<feature>-service/
+  types.ts        ← Output types only (database/model interfaces)
+  validation.ts   ← Zod schemas + validation functions + input types
+  index.ts        ← Prisma calls and business logic
 ```
 
 ---
 
-### 4.1 `types.ts` — Output TypeScript Interfaces (ONLY)
+### 5.1 `types.ts` — Output Types Only
 
-Define **ONLY output types** here — what comes from the database/models. **DO NOT import or re-export input types from validation.**
+Define **only** types that represent what comes **out of the database**.
 
 ```ts
-// lib/<feature>/types.ts
+// lib/<feature>-service/types.ts
 
-// Only database/model output types
 export interface Feature {
 	id: string;
 	name: string;
@@ -328,28 +522,26 @@ export interface FeatureWithRelations extends Feature {
 		name: string;
 		email: string;
 	};
-	// ... other relations
 }
 
-// ❌ NEVER do this:
-// export type { CreateFeatureInput, UpdateFeatureInput } from "./validation";
+// ❌ NEVER re-export input types from validation here
+// export type { CreateFeatureInput } from "./validation"; // WRONG
 ```
 
 **Rules:**
 
-- **ONLY output types** — what comes from database/models.
+- Output/database types only.
 - No imports from `./validation`.
-- No re-exporting input types.
-- No logic, no imports from Prisma or Next.js.
+- No logic, no Prisma imports, no Next.js imports.
 
 ---
 
-### 4.2 `validation.ts` — Zod Validation + Input Types
+### 5.2 `validation.ts` — Zod Schemas + Input Types
 
-Define all Zod schemas, validation functions, **AND input types** here. Validation functions **throw** errors when validation fails.
+All Zod schemas, validation functions, and input types live here. Validation functions **throw** on failure.
 
 ```ts
-// lib/<feature>/validation.ts
+// lib/<feature>-service/validation.ts
 
 import { z } from "zod";
 
@@ -382,18 +574,18 @@ export const idSchema = z.string().uuid("Invalid ID format");
 // ==================== VALIDATION FUNCTIONS ====================
 
 export function validateCreateFeature(data: unknown): CreateFeatureInput {
-	return createFeatureSchema.parse(data); // Throws if invalid
+	return createFeatureSchema.parse(data); // Throws ZodError if invalid
 }
 
 export function validateUpdateFeature(data: unknown): UpdateFeatureInput {
-	return updateFeatureSchema.parse(data); // Throws if invalid
+	return updateFeatureSchema.parse(data);
 }
 
 export function validateId(id: string): void {
-	idSchema.parse(id); // Throws if invalid
+	idSchema.parse(id);
 }
 
-// ==================== INPUT TYPE EXPORTS ====================
+// ==================== INPUT TYPES ====================
 
 export type CreateFeatureInput = z.infer<typeof createFeatureSchema>;
 export type UpdateFeatureInput = z.infer<typeof updateFeatureSchema>;
@@ -401,22 +593,20 @@ export type UpdateFeatureInput = z.infer<typeof updateFeatureSchema>;
 
 **Rules:**
 
-- Use Zod exclusively for validation — no manual validation logic.
-- Validation functions call `.parse()` which throws ZodError on failure.
-- **Export input types directly from this file** using `z.infer<typeof schema>`.
-- Never import from Prisma, Next.js, or response helpers here.
+- Zod exclusively — no manual validation logic.
+- `.parse()` throws `ZodError` automatically — never return error strings.
+- Export input types directly from this file using `z.infer`.
+- Only import from `"zod"` — no Prisma, no Next.js, no response helpers.
 
 ---
 
-### 4.3 `index.ts` — Business Logic
-
-Import **output types** from `./types` and **input types + validation** from `./validation`.
+### 5.3 `index.ts` — Business Logic
 
 ```ts
-// lib/<feature>/index.ts
+// lib/<feature>-service/index.ts
 
 import { prisma } from "@/lib/prisma";
-// Import validation functions AND input types from validation.ts
+import { Logger } from "@/lib/logger-service";
 import {
 	validateCreateFeature,
 	validateUpdateFeature,
@@ -424,10 +614,12 @@ import {
 	type CreateFeatureInput,
 	type UpdateFeatureInput,
 } from "./validation";
-// Import output types from types.ts
 import type { Feature } from "./types";
 
+const logger = new Logger("FEATURE-SERVICE");
+
 export async function getAllFeatures(userId: string): Promise<Feature[]> {
+	logger.info("Fetching all features", { userId });
 	return await prisma.feature.findMany({ where: { userId } });
 }
 
@@ -435,18 +627,18 @@ export async function getFeatureById(
 	id: string,
 	userId: string,
 ): Promise<Feature> {
-	validateId(id); // Throws if invalid
+	validateId(id);
 
 	const item = await prisma.feature.findFirst({ where: { id, userId } });
 	if (!item) throw new Error("NOT_FOUND");
+
 	return item;
 }
 
 export async function createFeature(
 	data: CreateFeatureInput & { userId: string },
 ): Promise<Feature> {
-	const validatedData = validateCreateFeature(data); // Throws if invalid
-
+	const validatedData = validateCreateFeature(data);
 	return await prisma.feature.create({ data: validatedData });
 }
 
@@ -461,91 +653,74 @@ export async function updateFeature(
 	const item = await prisma.feature.findFirst({ where: { id, userId } });
 	if (!item) throw new Error("NOT_FOUND");
 
-	return await prisma.feature.update({
-		where: { id },
-		data: validatedData,
-	});
+	return await prisma.feature.update({ where: { id }, data: validatedData });
 }
 
-export async function deleteFeature(
-	id: string,
-	userId: string,
-): Promise<Feature> {
+export async function deleteFeature(id: string, userId: string): Promise<void> {
 	validateId(id);
 
 	const item = await prisma.feature.findFirst({ where: { id, userId } });
 	if (!item) throw new Error("NOT_FOUND");
 
-	return await prisma.feature.delete({ where: { id } });
+	await prisma.feature.delete({ where: { id } });
 }
 ```
 
 **Rules:**
 
-- All Prisma calls live **only** here.
-- Always call validation functions at the start of each function.
-- Validation functions throw — catch them in the route layer.
-- Throw named errors (`"NOT_FOUND"`, `"ALREADY_EXISTS"`) for known states.
-- **Import input types from `./validation`.**
-- **Import output types from `./types`.**
-- Never import `NextRequest`, `NextApiResponse`, or response helpers.
+- All Prisma calls live **only** here — never in route files.
+- Always call validation at the start of each function.
+- Throw named string errors for known failure states (see section 8).
+- Import input types from `./validation`, output types from `./types`.
+- Never import `NextRequest`, `NextResponse`, or response helpers.
 
 ---
 
-### 4.4 Import Flow
+### 5.4 Transactions
 
-```
-route.ts
-  ├── imports validateX()    from  lib/<feature>/validation.ts
-  ├── imports service fns    from  lib/<feature>/index.ts
-  └── (does NOT need types unless using output types)
+Use `prisma.$transaction` for multi-step operations that must succeed or fail atomically.
 
-lib/<feature>/index.ts
-  ├── imports validateX() AND input types   from  ./validation
-  └── imports output types                  from  ./types
+```ts
+const result = await prisma.$transaction(async (tx) => {
+	// Step 1 — invalidate old records
+	await tx.oTPSession.updateMany({
+		where: { email, deletedAt: null },
+		data: { deletedAt: new Date() },
+	});
 
-lib/<feature>/validation.ts
-  └── imports z              from "zod" only
-  └── exports schemas, validation functions, AND input types
+	// Step 2 — create new record
+	const session = await tx.oTPSession.create({
+		data: { email, otpCode, expiresAt },
+	});
 
-lib/<feature>/types.ts
-  └── exports output types only (database/model interfaces)
-  └── NO imports from ./validation
+	return session;
+});
 ```
 
 ---
 
-### 4.5 Error Codes Contract
+### 5.5 Import Flow
 
-| Lib throws                       | Route maps to                                     |
-| -------------------------------- | ------------------------------------------------- |
-| `"NOT_FOUND"`                    | `sendNotFound(res)`                               |
-| `"ALREADY_EXISTS"`               | `sendConflict(res)`                               |
-| `"UNAUTHORIZED"`                 | `sendUnauthorized(res)`                           |
-| `"FORBIDDEN"`                    | `sendForbidden(res)`                              |
-| `"INVALID_OTP"`                  | `sendBadRequest(res, "Invalid OTP code")`         |
-| `"OTP_EXPIRED_OR_NOT_FOUND"`     | `sendBadRequest(res, "OTP expired or not found")` |
-| `"INVALID_OTP_FORMAT"`           | `sendBadRequest(res, "Invalid OTP format")`       |
-| Zod `ZodError` (from validation) | `sendBadRequest(res, error.message)`              |
-| anything else                    | `sendInternalError(res)`                          |
+```
+app/api/<feature>/route.ts
+  ├── imports validateX()         from  lib/<feature>-service/validation.ts
+  ├── imports service functions   from  lib/<feature>-service/index.ts
+  ├── imports format helpers      from  lib/response-service
+  ├── imports Logger              from  lib/logger-service
+  └── imports CookieService       from  lib/cookie-service
 
----
+lib/<feature>-service/index.ts
+  ├── imports validateX() + input types   from  ./validation
+  ├── imports output types                from  ./types
+  ├── imports Logger                      from  lib/logger-service
+  └── imports prisma                      from  lib/prisma
 
-### 5.4 When to Use Which Helper
+lib/<feature>-service/validation.ts
+  └── imports z from "zod" ONLY
 
-| Situation                  | Helper                                        |
-| -------------------------- | --------------------------------------------- |
-| Successful fetch           | `sendSuccess(res, data, "message")`           |
-| Resource created           | `sendCreated(res, data, "message")`           |
-| List with pagination       | `sendPaginatedSuccess(res, data, pagination)` |
-| Zod validation fails       | `sendBadRequest(res, error.message)`          |
-| Invalid body / params      | `sendBadRequest(res, "message")`              |
-| Missing / invalid token    | `sendUnauthorized(res, "message")`            |
-| Valid token, no permission | `sendForbidden(res, "message")`               |
-| Record not found           | `sendNotFound(res, "message")`                |
-| Duplicate / already exists | `sendConflict(res, "message")`                |
-| Rate limit hit             | `sendTooManyRequests(res, "message")`         |
-| Unexpected server error    | `sendInternalError(res, "message")`           |
+lib/<feature>-service/types.ts
+  └── no imports (or Prisma types only)
+```
 
 ---
 
@@ -553,226 +728,232 @@ lib/<feature>/types.ts
 
 ### 6.1 Logger Instance
 
-Create one logger per route file using the uppercase feature name:
+Create one logger per file using the **uppercase** service name:
 
 ```ts
-const logger = new Logger("EXPENSE");
+const logger = new Logger("REQUEST-OTP"); // route file
+const logger = new Logger("USER-SERVICE"); // lib service file
 ```
 
-### 6.2 When to Log
+### 6.2 Log Levels and When to Use Them
 
-| Event                | Level   | Example                                          |
-| -------------------- | ------- | ------------------------------------------------ |
-| Request received     | `info`  | `logger.info("GET /api/expense called")`         |
-| Auth failure         | `warn`  | `logger.warn("Unauthorized GET /api/expense")`   |
-| Successful operation | `info`  | `logger.info("Expense created", { id })`         |
-| Caught error         | `error` | `logger.error("GET /api/expense failed", error)` |
-| Dev tracing          | `debug` | `logger.debug("Parsed body", body)`              |
+| Level   | When                                 | Example                                              |
+| ------- | ------------------------------------ | ---------------------------------------------------- |
+| `info`  | Request received, key steps, success | `logger.info("POST /api/auth/login called")`         |
+| `warn`  | Auth failure, suspicious input       | `logger.warn("Unauthorized GET /api/expense")`       |
+| `error` | Caught exceptions                    | `logger.error("POST /api/auth/login failed", error)` |
+| `debug` | Dev tracing, intermediate values     | `logger.debug("Generated OTP", { expiresAt })`       |
 
 ### 6.3 Rules
 
-- Log at the **start** of every handler.
-- Log in every `catch` block before sending an error response.
+- Log at the **start** of every handler (`info`).
+- Log in every `catch` block before sending an error response (`error`).
+- Log every auth failure (`warn`).
 - Pass context as the **second argument** — never string-interpolate it into the message.
-- Never log passwords, tokens, OTP codes (except in development), or any sensitive fields.
+- **Never log** passwords, tokens, OTP codes (in production), or any sensitive fields.
 
 ```ts
 // ✅ Correct
-logger.info("Expense created", { id: expense.id });
+logger.info("OTP session created", { email, otpId: session.id, expiresAt });
 
 // ❌ Wrong
-logger.info(`Expense created: ${JSON.stringify(expense)}`);
+logger.info(`OTP session created: ${JSON.stringify(session)}`);
+```
+
+### 6.4 Masking Sensitive Values
+
+When you need to log something that may be sensitive, mask it explicitly:
+
+```ts
+logger.debug("Generated OTP", {
+	email,
+	otpCode: process.env.NODE_ENV === "development" ? otpCode : "***HIDDEN***",
+	expiresAt,
+});
 ```
 
 ---
 
 ## 7. Authentication Rules
 
-### 7.1 Reading the Token
+### 7.1 Token Extraction
 
-Read cookies directly from `req`:
+Read tokens from `httpOnly` cookies on every protected route:
 
 ```ts
-function getAuthUser(req: NextRequest) {
-	const accessToken = req.cookies.get("accessToken")?.value;
-	const refreshToken = req.cookies.get("refreshToken")?.value;
-	return CookieService.validateTokens(accessToken, refreshToken);
+const accessToken = req.cookies.get("accessToken")?.value;
+const refreshToken = req.cookies.get("refreshToken")?.value;
+const user = CookieService.validateTokens(accessToken, refreshToken);
+
+if (!user) {
+	logger.warn("Unauthorized POST /api/<feature>");
+	const response = formatUnauthorized(startTime, "Authentication required");
+	return NextResponse.json(response, { status: HttpStatus.UNAUTHORIZED });
 }
 ```
 
-Define this helper once per route file, above the exported handlers.
+### 7.2 Token Generation (Login Flow)
 
-### 7.2 Protecting a Route
-
-```ts
-export async function GET(req: NextRequest, res: NextApiResponse) {
-	const user = getAuthUser(req);
-	if (!user) {
-		logger.warn("Unauthorized GET /api/<feature>");
-		return sendUnauthorized(res, "Authentication required");
-	}
-	// proceed — user.id, user.email are available
-}
-```
-
-### 7.3 Public Routes (No Auth Required)
-
-For routes like `request-otp` that don't require authentication, simply omit the `getAuthUser` check.
+After successful authentication, generate tokens via `CookieService` and set them as `httpOnly` cookies:
 
 ```ts
-export async function POST(req: NextRequest, res: NextApiResponse) {
-	try {
-		logger.info("POST /api/auth/request-otp called");
+const tokens = CookieService.generateTokens({
+	id: user.id,
+	email: user.email,
+	name: user.name,
+});
 
-		const body = await req.json();
-		const validatedData = validateRequestOTP(body);
+nextResponse.cookies.set("accessToken", tokens.accessToken, {
+	httpOnly: true,
+	path: "/",
+	maxAge: 10 * 60, // 10 minutes
+	sameSite: "lax",
+	secure: process.env.NODE_ENV === "production",
+});
 
-		// No auth check needed for public route
-		const result = await requestOTP(validatedData);
-
-		sendSuccess(res, result, "OTP sent successfully");
-	} catch (error) {
-		// ... error handling
-	}
-}
+nextResponse.cookies.set("refreshToken", tokens.refreshToken, {
+	httpOnly: true,
+	path: "/",
+	maxAge: 12 * 60, // 12 minutes
+	sameSite: "lax",
+	secure: process.env.NODE_ENV === "production",
+});
 ```
 
-### 7.4 Token Expiry
+### 7.3 Public Routes
 
-- Access token: **10 minutes**
-- Refresh token: **12 minutes**
-- `CookieService.validateTokens` automatically issues new tokens when the access token is expired but the refresh token is still valid.
+Routes that do not require authentication (e.g., `/api/auth/request-otp`, `/api/auth/login`) must **omit** the auth check block entirely — do not add it and return `formatUnauthorized`.
 
 ---
 
-## 8. Error Handling Rules
+## 8. Error Handling Contract
 
-### 8.1 Every Handler Must Have a Try-Catch
+### 8.1 Named Errors from Lib
+
+Service functions in `lib/` throw plain string errors for known failure states. The route layer catches them and maps to the correct response helper.
+
+| Lib throws                   | Route maps to                                             | Status |
+| ---------------------------- | --------------------------------------------------------- | ------ |
+| `"NOT_FOUND"`                | `formatNotFound`                                          | 404    |
+| `"ALREADY_EXISTS"`           | `formatConflict`                                          | 409    |
+| `"UNAUTHORIZED"`             | `formatUnauthorized`                                      | 401    |
+| `"FORBIDDEN"`                | `formatForbidden`                                         | 403    |
+| `"INVALID_OTP"`              | `formatBadRequest(startTime, "Invalid OTP code")`         | 400    |
+| `"OTP_EXPIRED_OR_NOT_FOUND"` | `formatBadRequest(startTime, "OTP expired or not found")` | 400    |
+| `"INVALID_OTP_FORMAT"`       | `formatBadRequest(startTime, "Invalid OTP format")`       | 400    |
+| `ZodError` (from `.parse()`) | `formatBadRequest(startTime, error.errors?.[0]?.message)` | 400    |
+| Anything else                | `formatInternalError`                                     | 500    |
+
+### 8.2 Catch Block Pattern
+
+Every route handler must follow this catch pattern:
 
 ```ts
-export async function POST(req: NextRequest, res: NextApiResponse) {
-	try {
-		// ... handler logic
-	} catch (error: any) {
-		logger.error("POST /api/<feature> failed", error);
+} catch (error: any) {
+	logger.error("POST /api/<feature> failed", error);
 
-		// Handle Zod validation errors
-		if (error.name === "ZodError") {
-			return sendBadRequest(
-				res,
-				error.errors[0]?.message || "Validation failed",
-			);
-		}
-
-		// Handle named errors from service layer
-		if (error.message === "NOT_FOUND")
-			return sendNotFound(res, "Resource not found");
-		if (error.message === "ALREADY_EXISTS")
-			return sendConflict(res, "Already exists");
-		if (error.message === "INVALID_OTP")
-			return sendBadRequest(res, "Invalid OTP code");
-		if (error.message === "OTP_EXPIRED_OR_NOT_FOUND") {
-			return sendBadRequest(res, "OTP expired or not found");
-		}
-
-		// Fallback — never leak internal error messages
-		sendInternalError(res, "An unexpected error occurred");
+	// 1. Zod validation errors
+	if (error.name === "ZodError" || error.message?.includes("Validation")) {
+		const response = formatBadRequest(startTime, error.errors?.[0]?.message || error.message);
+		return NextResponse.json(response, { status: HttpStatus.BAD_REQUEST });
 	}
+
+	// 2. Named business logic errors
+	if (error.message === "NOT_FOUND") {
+		const response = formatNotFound(startTime, "Resource not found");
+		return NextResponse.json(response, { status: HttpStatus.NOT_FOUND });
+	}
+
+	if (error.message === "ALREADY_EXISTS") {
+		const response = formatConflict(startTime, "Resource already exists");
+		return NextResponse.json(response, { status: HttpStatus.CONFLICT });
+	}
+
+	// 3. Custom error strings (e.g., auth service)
+	if (error.message?.includes("Invalid or expired OTP")) {
+		const response = formatUnauthorized(startTime, "Invalid or expired OTP");
+		return NextResponse.json(response, { status: HttpStatus.UNAUTHORIZED });
+	}
+
+	// 4. Fallback
+	const response = formatInternalError(startTime, "Operation failed");
+	return NextResponse.json(response, { status: HttpStatus.INTERNAL_SERVER_ERROR });
 }
 ```
 
-### 8.2 Validation Flow
+### 8.3 Never Expose Raw Errors
 
-```ts
-// 1. In route.ts — call validation function from validation.ts
-const validatedData = validateCreateFeature(body); // Throws ZodError if invalid
-
-// 2. Catch ZodError in catch block
-catch (error: any) {
-  if (error.name === "ZodError") {
-    return sendBadRequest(res, error.errors[0]?.message);
-  }
-}
-```
-
-### 8.3 Never Leak Internal Error Messages
-
-```ts
-// ❌ Never — exposes Prisma / DB internals to the client
-sendInternalError(res, error.message);
-
-// ✅ Always — log internally, return a safe generic message
-logger.error("DB error", error);
-sendInternalError(res, "An unexpected error occurred");
-```
+Never return `error.message` directly from unknown errors. Only map known named errors — everything else falls through to `formatInternalError`.
 
 ---
 
 ## 9. Quick Reference Cheatsheet
 
+### Full Request Lifecycle
+
 ```
 REQUEST COMES IN
       │
       ▼
-app/api/<feature>/route.ts
+export async function GET/POST/PUT/PATCH/DELETE(req: NextRequest)
   │
-  ├── export async function GET(req, res)
-  ├── export async function POST(req, res)
-  ├── export async function PUT(req, res)
-  ├── export async function PATCH(req, res)
-  └── export async function DELETE(req, res)
+  ├── const startTime = Date.now()
+  ├── logger.info("METHOD /api/<feature> called")
+  ├── CookieService.validateTokens() → if null AND protected → formatUnauthorized + return
+  ├── const { id } = await params  ← dynamic routes ONLY — always await
+  ├── validateId(id)               ← dynamic routes ONLY
+  ├── const body = await req.json()
+  ├── validateCreateX(body)        ← throws ZodError if invalid
+  ├── call lib/<feature>-service/index.ts function
+  │         ├── validates internally
+  │         ├── calls Prisma
+  │         └── throws named errors on failure
+  ├── logger.info("Operation successful", { id })
+  ├── const response = formatSuccess(data, startTime, { message })
+  └── return NextResponse.json(response, { status: HttpStatus.OK })
         │
-        ├── 1. logger.info("METHOD /api/<feature> called")
-        ├── 2. getAuthUser(req) → if null AND protected route → sendUnauthorized()
-        ├── 3. const { id } = await params (dynamic routes only)
-        ├── 4. validateId(id) from validation.ts (dynamic routes only)
-        ├── 5. validateCreateX(body) from validation.ts → throws ZodError if invalid
-        ├── 6. call lib/<feature>/index.ts function
-        │         ├── imports input types  from ./validation
-        │         ├── imports output types from ./types
-        │         ├── imports validators   from ./validation
-        │         └── all Prisma calls live here
-        ├── 7. sendSuccess(res, data) / sendCreated(res, data)
-        │
-        └── catch (error)
+        └── catch (error: any)
               ├── logger.error("... failed", error)
-              ├── if error.name === "ZodError" → sendBadRequest(res, error.message)
-              ├── if error.message === "NOT_FOUND" → sendNotFound(res)
-              ├── if error.message === "ALREADY_EXISTS" → sendConflict(res)
-              └── fallback → sendInternalError(res, "...")
+              ├── ZodError           → formatBadRequest   → 400
+              ├── "NOT_FOUND"        → formatNotFound     → 404
+              ├── "ALREADY_EXISTS"   → formatConflict     → 409
+              ├── "UNAUTHORIZED"     → formatUnauthorized → 401
+              └── fallback           → formatInternalError → 500
 ```
 
-### File Structure Quick View
+### File Quick Reference
 
 ```
-lib/<feature>/
-├── types.ts           → OUTPUT types only (database/model interfaces)
-├── validation.ts      → Zod schemas + validation functions + INPUT types
-└── index.ts           → Business logic (imports from ./types & ./validation)
+lib/<feature>-service/
+├── types.ts        → OUTPUT types only  (database/model interfaces)
+├── validation.ts   → Zod schemas + validation functions + INPUT types
+└── index.ts        → Business logic (Prisma calls, named errors)
 ```
 
 ### Type Separation Rule
 
 | File            | Contains                                           | Imports From                                                 |
 | --------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| `types.ts`      | Output types only (database/models)                | Nothing (except maybe Prisma types)                          |
-| `validation.ts` | Zod schemas, validation functions, **Input types** | `zod` only                                                   |
-| `index.ts`      | Business logic                                     | Input types from `./validation`, Output types from `./types` |
+| `types.ts`      | Output types (database shapes)                     | Nothing (or Prisma types only)                               |
+| `validation.ts` | Zod schemas, validation functions, **input types** | `"zod"` only                                                 |
+| `index.ts`      | Business logic                                     | Input types from `./validation`, output types from `./types` |
 
 ### Always / Never Summary
 
-| ✅ Always                                      | ❌ Never                                       |
-| ---------------------------------------------- | ---------------------------------------------- |
-| Use named exports: `export async function GET` | Use `export default function handler`          |
-| Pass `res` as first arg to every helper        | Call `res.status().json()` directly            |
-| `await params` in every dynamic route handler  | Access `params.id` without awaiting            |
-| Wrap every handler in try-catch                | Put Prisma calls in route files                |
-| Use Zod for all validation                     | Write manual validation logic                  |
-| Export input types from `validation.ts`        | Export input types from `types.ts`             |
-| Export output types from `types.ts`            | Import input types in `types.ts`               |
-| Validation functions call `.parse()`           | Return error strings from validation functions |
-| Throw named error strings from `index.ts`      | Import `NextRequest` in lib files              |
-| Log at the start of every handler              | Log passwords, tokens, OTP codes, or secrets   |
-| Pass context as second arg to logger           | Return `error.message` directly to client      |
-| Check `error.name === "ZodError"` in catch     | Assume all errors are strings                  |
-
+| ✅ Always                                                   | ❌ Never                                                  |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| Use named exports: `export async function GET/POST/...`     | Use `export default function handler`                     |
+| Record `const startTime = Date.now()` at handler top        | Forget `startTime` — all format helpers need it           |
+| `await params` in every dynamic route handler               | Access `params.id` without awaiting                       |
+| Wrap every handler in `try-catch`                           | Leave a handler without a `try-catch`                     |
+| Call `NextResponse.json(formatX(...), { status })` in route | Call format helpers expecting them to return NextResponse |
+| Use `HttpStatus` constants for status codes                 | Hard-code status numbers like `200`, `400`                |
+| Use Zod for all validation                                  | Write manual validation logic                             |
+| Export input types from `validation.ts`                     | Export input types from `types.ts`                        |
+| Export output types from `types.ts`                         | Import input types in `types.ts`                          |
+| Throw named string errors from `index.ts`                   | Import `NextRequest` or `NextResponse` in lib files       |
+| Log at the start of every handler                           | Log passwords, tokens, OTP codes, or secrets              |
+| Pass context as second arg to logger                        | String-interpolate context into log messages              |
+| Check `error.name === "ZodError"` in catch                  | Return `error.message` directly from unknown errors       |
+| Use `prisma.$transaction` for multi-step writes             | Perform multi-step writes outside a transaction           |
+| Mask sensitive values in logs in production                 | Log raw OTP codes, passwords, or tokens in production     |

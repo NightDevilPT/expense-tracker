@@ -10,11 +10,10 @@ import {
 	formatUnauthorized,
 	HttpStatus,
 } from "@/lib/response-service";
-import { withRateLimit } from "@/middleware/with-ratelimit";
 
 const logger = new Logger("LOGIN-OTP");
 
-async function handleLoginOtp(req: NextRequest) {
+export async function POST(req: NextRequest) {
 	const startTime = Date.now();
 
 	try {
@@ -116,8 +115,3 @@ async function handleLoginOtp(req: NextRequest) {
 		});
 	}
 }
-
-export const POST = withRateLimit(handleLoginOtp, {
-	windowMs: 1 * 60 * 1000, // 1 minute
-	maxRequests: 3,
-});

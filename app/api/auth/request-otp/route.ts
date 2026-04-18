@@ -8,11 +8,10 @@ import {
 	formatInternalError,
 	HttpStatus,
 } from "@/lib/response-service";
-import { withRateLimit } from "@/middleware/with-ratelimit";
 
 const logger = new Logger("REQUEST-OTP");
 
-async function handleRequestOtp(req: NextRequest) {
+export async function POST(req: NextRequest) {
 	const startTime = Date.now();
 
 	try {
@@ -66,8 +65,3 @@ async function handleRequestOtp(req: NextRequest) {
 		});
 	}
 }
-
-export const POST = withRateLimit(handleRequestOtp, {
-	windowMs: 1 * 60 * 1000, // 1 minute
-	maxRequests: 1,
-});
