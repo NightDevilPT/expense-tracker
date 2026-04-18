@@ -1,7 +1,7 @@
 // prisma/models/recurringTransaction.prisma
 
 model RecurringTransaction {
-  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  id          String             @id @default(cuid())
   name        String
   amount      Float
   type        TransactionType    @default(EXPENSE)
@@ -14,11 +14,11 @@ model RecurringTransaction {
   description String?
   
   // Relationships
-  userId      String             @db.ObjectId
+  userId      String
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?            @db.ObjectId
+  categoryId  String?
   category    Category?          @relation(fields: [categoryId], references: [id])
-  accountId   String?            @db.ObjectId
+  accountId   String?
   account     Account?           @relation(fields: [accountId], references: [id])
   transactions Transaction[]
   

@@ -10,14 +10,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// Import all model files
-// Note: Prisma doesn't support file imports natively
-// You need to copy content of all files into one schema.prisma
-// This structure is for organization during development
 
 // ============================================
 // ENUMS
@@ -39,5 +34,5 @@ datasource db {
 // models/attachment.prisma
 // models/auditLog.prisma
 // models/exportHistory.prisma
+// models/otpSession.prisma
 // models/notification.prisma
-// models/userPreference.prisma

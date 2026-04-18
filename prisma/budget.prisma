@@ -1,7 +1,7 @@
 // prisma/models/budget.prisma
 
 model Budget {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(cuid())
   amount         Float
   period         BudgetPeriod @default(MONTHLY)
   startDate      DateTime     @default(now())
@@ -14,9 +14,9 @@ model Budget {
   remaining      Float        @default(0)
   
   // Relationships
-  userId         String       @db.ObjectId
+  userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId     String?      @db.ObjectId
+  categoryId     String?
   category       Category?    @relation(fields: [categoryId], references: [id])
   
   @@unique([userId, categoryId, period, startDate])

@@ -1,19 +1,19 @@
 // prisma/models/user.prisma
 
 model User {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  email           String   @unique
-  passwordHash    String
-  name            String
-  avatar          String?
-  currency        String   @default("USD")
-  theme           String   @default("light")
-  firstDayOfWeek  Int      @default(0) // 0=Sunday, 1=Monday
-  dateFormat      String   @default("MM/DD/YYYY")
-  numberFormat    String   @default("1,000.00")
-  emailNotifications Boolean @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  name               String
+  avatar             String?
+  currency           String               @default("USD")
+  theme              String               @default("light")
+  firstDayOfWeek     Int                  @default(0) // 0=Sunday, 1=Monday
+  dateFormat         String               @default("MM/DD/YYYY")
+  numberFormat       String               @default("1,000.00")
+  emailNotifications Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   
   // Relationships
   transactions        Transaction[]
@@ -26,6 +26,7 @@ model User {
   attachments         Attachment[]
   auditLogs           AuditLog[]
   exportHistory       ExportHistory[]
+  notifications       Notification[]      // ← ADD THIS LINE
   
   @@map("users")
 }

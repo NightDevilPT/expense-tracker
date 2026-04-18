@@ -1,7 +1,7 @@
 // prisma/models/exportHistory.prisma
 
 model ExportHistory {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   format      String
   dateRange   Json
   filters     Json?
@@ -10,7 +10,7 @@ model ExportHistory {
   exportedAt  DateTime @default(now())
   
   // Relationships
-  userId      String   @db.ObjectId
+  userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])

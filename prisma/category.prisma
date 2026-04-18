@@ -1,7 +1,7 @@
 // prisma/models/category.prisma
 
 model Category {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   name        String
   type        TransactionType @default(EXPENSE)
   icon        String?
@@ -10,7 +10,7 @@ model Category {
   order       Int      @default(0)
   
   // Relationships
-  userId      String?  @db.ObjectId
+  userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets     Budget[]

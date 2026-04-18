@@ -1,7 +1,7 @@
 // prisma/models/auditLog.prisma
 
 model AuditLog {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(cuid())
   action      AuditAction
   entityType  String
   entityId    String
@@ -13,7 +13,7 @@ model AuditLog {
   createdAt   DateTime    @default(now())
   
   // Relationships
-  userId      String      @db.ObjectId
+  userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])

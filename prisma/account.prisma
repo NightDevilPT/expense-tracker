@@ -1,42 +1,22 @@
-model AccountType {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String   // "Cash", "Bank Account", "Crypto Wallet", etc.
-  icon        String?  // Lucide icon name
-  color       String?  // Display color
-  isDefault   Boolean  @default(false) // System default types
-  isActive    Boolean  @default(true)
-  order       Int      @default(0)
-  
-  // System types cannot be edited/deleted
-  isSystem    Boolean  @default(false)
-  
-  // Relationships
-  userId      String?  @db.ObjectId // Null for system types
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accounts    Account[]
-  
-  @@unique([userId, name])
-  @@index([userId])
-  @@map("account_types")
-}
+// prisma/models/account.prisma
 
 model Account {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  name        String      // "Main Wallet", "Travel Fund", etc.
+  id          String      @id @default(cuid())
+  name        String
+  type        AccountType @default(CASH)
   balance     Float       @default(0)
   currency    String?
   isDefault   Boolean     @default(false)
+  color       String?
   notes       String?
   
   // Relationships
-  userId      String      @db.ObjectId
+  userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountTypeId String    @db.ObjectId
-  accountType   AccountType @relation(fields: [accountTypeId], references: [id])
   transactions Transaction[]
   recurringTxns RecurringTransaction[]
   
   @@index([userId])
-  @@index([accountTypeId])
+  @@index([isDefault])
   @@map("accounts")
 }
