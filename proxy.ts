@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
 	"/api/auth/login",
 	"/api/auth/request-otp",
 	"/api/auth/verify-otp",
+	"/api/auth/logout"
 	// ... etc
 ];
 
@@ -24,6 +25,7 @@ const PUBLIC_ROUTES = [
 const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
 	"/api/auth/login": { windowMs: 60_000, maxRequests: 5 },
 	"/api/auth/request-otp": { windowMs: 60_000, maxRequests: 3 },
+	"/api/auth/logout": { windowMs: 60_000, maxRequests: 60 },
 	"/api/user": { windowMs: 60_000, maxRequests: 10 },
 	// ... etc
 	default: { windowMs: 60_000, maxRequests: 30 },

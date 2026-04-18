@@ -1,9 +1,9 @@
 ====================================================================================================
 🚀 UNILOGGER SOURCE CODE DUMP
 ====================================================================================================
-📅 Generated: 17/4/2026, 5:52:57 am
+📅 Generated: 18/4/2026, 6:01:02 pm
 📁 Root: src/
-📊 Total Files: 13
+📊 Total Files: 15
 ====================================================================================================
 
 📑 TABLE OF CONTENTS
@@ -15,12 +15,14 @@
 5. 📄 prisma\category.prisma
 6. 📄 prisma\enums.prisma
 7. 📄 prisma\export-history.prisma
-8. 📄 prisma\resurring-transaction.prisma
-9. 📄 prisma\saving-goal.prisma
-10. 📄 prisma\schema.prisma
-11. 📄 prisma\tag.prisma
-12. 📄 prisma\transaction.prisma
-13. 📄 prisma\user.prisma
+8. 📄 prisma\notification.prisma
+9. 📄 prisma\otp-session.prisma
+10. 📄 prisma\resurring-transaction.prisma
+11. 📄 prisma\saving-goal.prisma
+12. 📄 prisma\schema.prisma
+13. 📄 prisma\tag.prisma
+14. 📄 prisma\transaction.prisma
+15. 📄 prisma\user.prisma
 
 ====================================================================================================
 
@@ -34,6 +36,10 @@ src/
     ├── 📄 category.prisma
     ├── 📄 enums.prisma
     ├── 📄 export-history.prisma
+    ├── 📁 migrations
+    │   ├── 📁 20260418084903_init
+    ├── 📄 notification.prisma
+    ├── 📄 otp-session.prisma
     ├── 📄 resurring-transaction.prisma
     ├── 📄 saving-goal.prisma
     ├── 📄 schema.prisma
@@ -53,7 +59,7 @@ src/
 // prisma/models/account.prisma
 
 model Account {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(cuid())
   name        String
   type        AccountType @default(CASH)
   balance     Float       @default(0)
@@ -63,7 +69,7 @@ model Account {
   notes       String?
   
   // Relationships
-  userId      String      @db.ObjectId
+  userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   recurringTxns RecurringTransaction[]
@@ -80,7 +86,7 @@ model Account {
 // prisma/models/attachment.prisma
 
 model Attachment {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(cuid())
   filename      String
   originalName  String
   mimeType      String
@@ -90,9 +96,9 @@ model Attachment {
   uploadedAt    DateTime @default(now())
   
   // Relationships
-  transactionId String   @db.ObjectId
+  transactionId String
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  userId        String   @db.ObjectId
+  userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([transactionId])
@@ -107,7 +113,7 @@ model Attachment {
 // prisma/models/auditLog.prisma
 
 model AuditLog {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(cuid())
   action      AuditAction
   entityType  String
   entityId    String
@@ -119,7 +125,7 @@ model AuditLog {
   createdAt   DateTime    @default(now())
   
   // Relationships
-  userId      String      @db.ObjectId
+  userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
@@ -136,7 +142,7 @@ model AuditLog {
 // prisma/models/budget.prisma
 
 model Budget {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(cuid())
   amount         Float
   period         BudgetPeriod @default(MONTHLY)
   startDate      DateTime     @default(now())
@@ -149,9 +155,9 @@ model Budget {
   remaining      Float        @default(0)
   
   // Relationships
-  userId         String       @db.ObjectId
+  userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId     String?      @db.ObjectId
+  categoryId     String?
   category       Category?    @relation(fields: [categoryId], references: [id])
   
   @@unique([userId, categoryId, period, startDate])
@@ -167,7 +173,7 @@ model Budget {
 // prisma/models/category.prisma
 
 model Category {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   name        String
   type        TransactionType @default(EXPENSE)
   icon        String?
@@ -176,7 +182,7 @@ model Category {
   order       Int      @default(0)
   
   // Relationships
-  userId      String?  @db.ObjectId
+  userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets     Budget[]
@@ -252,6 +258,12 @@ enum NotificationType {
   SYSTEM
 }
 
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
 ====================================================================================================
 📁 FILE: prisma\export-history.prisma
 ====================================================================================================
@@ -259,7 +271,7 @@ enum NotificationType {
 // prisma/models/exportHistory.prisma
 
 model ExportHistory {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   format      String
   dateRange   Json
   filters     Json?
@@ -268,12 +280,60 @@ model ExportHistory {
   exportedAt  DateTime @default(now())
   
   // Relationships
-  userId      String   @db.ObjectId
+  userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
   @@index([exportedAt])
   @@map("export_history")
+}
+
+====================================================================================================
+📁 FILE: prisma\notification.prisma
+====================================================================================================
+
+// prisma/models/notification.prisma
+
+model Notification {
+  id          String             @id @default(cuid())
+  title       String
+  message     String
+  type        NotificationType
+  status      NotificationStatus @default(UNREAD)
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  readAt      DateTime?
+  
+  // Relationships
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+====================================================================================================
+📁 FILE: prisma\otp-session.prisma
+====================================================================================================
+
+// prisma/models/otpSession.prisma
+
+model OTPSession {
+  id          String   @id @default(cuid())
+  email       String
+  otpCode     String
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+  
+  @@index([email])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("otp_sessions")
 }
 
 ====================================================================================================
@@ -283,7 +343,7 @@ model ExportHistory {
 // prisma/models/recurringTransaction.prisma
 
 model RecurringTransaction {
-  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  id          String             @id @default(cuid())
   name        String
   amount      Float
   type        TransactionType    @default(EXPENSE)
@@ -296,11 +356,11 @@ model RecurringTransaction {
   description String?
   
   // Relationships
-  userId      String             @db.ObjectId
+  userId      String
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?            @db.ObjectId
+  categoryId  String?
   category    Category?          @relation(fields: [categoryId], references: [id])
-  accountId   String?            @db.ObjectId
+  accountId   String?
   account     Account?           @relation(fields: [accountId], references: [id])
   transactions Transaction[]
   
@@ -317,7 +377,7 @@ model RecurringTransaction {
 // prisma/models/savingsGoal.prisma
 
 model SavingsGoal {
-  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  id               String            @id @default(cuid())
   name             String
   targetAmount     Float
   currentAmount    Float             @default(0)
@@ -330,9 +390,9 @@ model SavingsGoal {
   daysRemaining    Int               @default(0)
   
   // Relationships
-  userId           String            @db.ObjectId
+  userId           String
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedCategoryId String?           @db.ObjectId
+  linkedCategoryId String?
   linkedCategory   Category?         @relation(fields: [linkedCategoryId], references: [id])
   
   @@index([userId])
@@ -356,14 +416,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// Import all model files
-// Note: Prisma doesn't support file imports natively
-// You need to copy content of all files into one schema.prisma
-// This structure is for organization during development
 
 // ============================================
 // ENUMS
@@ -385,8 +440,8 @@ datasource db {
 // models/attachment.prisma
 // models/auditLog.prisma
 // models/exportHistory.prisma
+// models/otpSession.prisma
 // models/notification.prisma
-// models/userPreference.prisma
 
 ====================================================================================================
 📁 FILE: prisma\tag.prisma
@@ -395,12 +450,12 @@ datasource db {
 // prisma/models/tag.prisma
 
 model Tag {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   name        String
   color       String?
   
   // Relationships
-  userId      String   @db.ObjectId
+  userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions TransactionTag[]
   
@@ -416,7 +471,7 @@ model Tag {
 // prisma/models/transaction.prisma
 
 model Transaction {
-  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  id              String          @id @default(cuid())
   amount          Float
   type            TransactionType @default(EXPENSE)
   description     String?
@@ -424,17 +479,16 @@ model Transaction {
   notes           String?
   
   // Relationships
-  userId          String          @db.ObjectId
+  userId          String
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId      String?         @db.ObjectId
+  categoryId      String?
   category        Category?       @relation(fields: [categoryId], references: [id])
-  accountId       String?         @db.ObjectId
+  accountId       String?
   account         Account?        @relation(fields: [accountId], references: [id])
-  recurringTxnId  String?         @db.ObjectId
+  recurringTxnId  String?
   recurringTxn    RecurringTransaction? @relation(fields: [recurringTxnId], references: [id])
   attachments     Attachment[]
   tags            TransactionTag[]
-  auditLogs       AuditLog[]
   
   // Indexes
   @@index([userId])
@@ -447,8 +501,8 @@ model Transaction {
 
 // Junction table for Transaction-Tag many-to-many
 model TransactionTag {
-  transactionId String      @db.ObjectId
-  tagId         String      @db.ObjectId
+  transactionId String
+  tagId         String
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
   
@@ -463,19 +517,19 @@ model TransactionTag {
 // prisma/models/user.prisma
 
 model User {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  email           String   @unique
-  passwordHash    String
-  name            String
-  avatar          String?
-  currency        String   @default("USD")
-  theme           String   @default("light")
-  firstDayOfWeek  Int      @default(0) // 0=Sunday, 1=Monday
-  dateFormat      String   @default("MM/DD/YYYY")
-  numberFormat    String   @default("1,000.00")
-  emailNotifications Boolean @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  name               String
+  avatar             String?
+  currency           String               @default("USD")
+  theme              String               @default("light")
+  firstDayOfWeek     Int                  @default(0) // 0=Sunday, 1=Monday
+  dateFormat         String               @default("MM/DD/YYYY")
+  numberFormat       String               @default("1,000.00")
+  emailNotifications Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   
   // Relationships
   transactions        Transaction[]
@@ -488,6 +542,7 @@ model User {
   attachments         Attachment[]
   auditLogs           AuditLog[]
   exportHistory       ExportHistory[]
+  notifications       Notification[]      // ← ADD THIS LINE
   
   @@map("users")
 }

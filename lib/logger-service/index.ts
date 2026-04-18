@@ -19,6 +19,10 @@ const LevelColor: Record<LogLevel, string> = {
 	ERROR: Colors.RED,
 };
 
+const isLoggingEnabled = (): boolean => {
+	return process.env.ENABLE_LOGGER === "true";
+};
+
 export class Logger {
 	private service: string;
 
@@ -27,12 +31,16 @@ export class Logger {
 	}
 
 	private log(level: LogLevel, message: string, context?: any) {
+		if (!isLoggingEnabled()) {
+			return;
+		}
+
 		const timestamp = new Date().toISOString();
 		const color = LevelColor[level];
 
 		console.log(
 			`${Colors.GRAY}[${timestamp}]${Colors.RESET} ${color}[${level}]${Colors.RESET} ${Colors.CYAN}[${this.service}]${Colors.RESET} ${message}`,
-			context ? context : "",
+			context !== undefined ? context : "",
 		);
 	}
 
@@ -52,5 +60,3 @@ export class Logger {
 		this.log("ERROR", message, context);
 	}
 }
-
-export const logger = new Logger("EXPENSE-TRACKER");
