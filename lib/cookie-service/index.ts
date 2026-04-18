@@ -4,9 +4,9 @@ import { NextApiResponse } from "next";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const EXPIRY = {
-	ACCESS: 60 * 10, // 10 minutes
-	REFRESH: 60 * 12, // 12 minutes
+export const EXPIRY = {
+	ACCESS: 60 * parseInt(process.env.ACCESS_TIME || "10"), // 10 minutes
+	REFRESH: 60 * parseInt(process.env.REFRESH_TIME || "12"), // 12 minutes
 };
 
 export interface TokenResponse {

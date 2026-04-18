@@ -35,17 +35,17 @@ _Required for Transactions - Need these IDs first_
 | 10       | `/api/categories/:id`     | DELETE | Delete category               | Yes           | ⏳ PENDING |✅
 | 11       | `/api/categories/default` | GET    | Get default system categories | Yes           | ⏳ PENDING |✅
 
-#### 3. **Accounts**
+## 3. **Accounts**
 
-| Priority | API Endpoint                | Method | Description                 | Auth Required | Status     |
-| -------- | --------------------------- | ------ | --------------------------- | ------------- | ---------- |
-| 12       | `/api/accounts`             | GET    | Get all accounts            | Yes           | ⏳ PENDING |
-| 13       | `/api/accounts`             | POST   | Create new account          | Yes           | ⏳ PENDING |
-| 14       | `/api/accounts/:id`         | GET    | Get account details         | Yes           | ⏳ PENDING |
-| 15       | `/api/accounts/:id`         | PUT    | Update account              | Yes           | ⏳ PENDING |
-| 16       | `/api/accounts/:id`         | DELETE | Delete account              | Yes           | ⏳ PENDING |
-| 17       | `/api/accounts/default`     | PUT    | Set default account         | Yes           | ⏳ PENDING |
-| 18       | `/api/accounts/:id/balance` | GET    | Get account balance history | Yes           | ⏳ PENDING |
+| Priority | API Endpoint                    | Method | Description                         | Auth Required | Status     |
+| -------- | ------------------------------- | ------ | ----------------------------------- | ------------- | ---------- |
+| 12       | `/api/accounts`                 | GET    | Get all accounts                    | Yes           | ⏳ PENDING |
+| 13       | `/api/accounts`                 | POST   | Create new account                  | Yes           | ⏳ PENDING |
+| 14       | `/api/accounts/:id`             | GET    | Get account details                 | Yes           | ⏳ PENDING |
+| 15       | `/api/accounts/:id`             | PUT    | Update account                      | Yes           | ⏳ PENDING |
+| 16       | `/api/accounts/:id`             | DELETE | Delete account                      | Yes           | ⏳ PENDING |
+| 17       | `/api/accounts/:id/add-balance` | PUT    | Add/Subtract balance from account   | Yes           | ⏳ PENDING |
+| 18       | `/api/accounts/:id/history`     | GET    | Get account balance change history  | Yes           | ⏳ PENDING |
 
 #### 4. **Tags**
 

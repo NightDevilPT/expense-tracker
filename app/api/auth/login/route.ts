@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Logger } from "@/lib/logger-service";
-import { CookieService } from "@/lib/cookie-service";
+import { CookieService, EXPIRY } from "@/lib/cookie-service";
 import { loginOtp } from "@/lib/user-service";
 import { validateLoginOtp } from "@/lib/user-service/validation";
 import {
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 		nextResponse.cookies.set("accessToken", tokens.accessToken, {
 			httpOnly: true,
 			path: "/",
-			maxAge: 10 * 60, // 10 minutes
+			maxAge: EXPIRY.ACCESS, // 10 minutes
 			sameSite: "lax",
 			secure: process.env.NODE_ENV === "production",
 		});
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 		nextResponse.cookies.set("refreshToken", tokens.refreshToken, {
 			httpOnly: true,
 			path: "/",
-			maxAge: 12 * 60, // 12 minutes
+			maxAge: EXPIRY.REFRESH, // 12 minutes
 			sameSite: "lax",
 			secure: process.env.NODE_ENV === "production",
 		});

@@ -1,4 +1,4 @@
-// prisma/models/account.prisma
+// prisma/models/account.prisma (updated)
 
 model Account {
   id          String      @id @default(cuid())
@@ -11,12 +11,32 @@ model Account {
   notes       String?
   
   // Relationships
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  recurringTxns RecurringTransaction[]
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  recurringTxns   RecurringTransaction[]
+  balanceHistory  AccountBalanceHistory[] // NEW: Track all balance changes
   
   @@index([userId])
   @@index([isDefault])
   @@map("accounts")
+}
+
+model AccountBalanceHistory {
+  id          String   @id @default(cuid())
+  accountId   String
+  balance     Float    // New balance after change
+  changeAmount Float   // Positive = added, Negative = subtracted
+  changeType  String   // "DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "TRANSFER"
+  description String?
+  referenceId String?  // Can link to transaction ID or transfer ID
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  @@index([accountId])
+  @@index([createdAt])
+  @@index([changeType])
+  @@map("account_balance_history")
 }
