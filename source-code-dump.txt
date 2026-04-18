@@ -1,7 +1,7 @@
 ====================================================================================================
 🚀 UNILOGGER SOURCE CODE DUMP
 ====================================================================================================
-📅 Generated: 18/4/2026, 7:39:52 pm
+📅 Generated: 18/4/2026, 8:53:07 pm
 📁 Root: src/
 📊 Total Files: 15
 ====================================================================================================
@@ -38,6 +38,7 @@ src/
     ├── 📄 export-history.prisma
     ├── 📁 migrations
     │   ├── 📁 20260418084903_init
+    │   ├── 📁 20260418143413_account_balance_added
     ├── 📄 notification.prisma
     ├── 📄 otp-session.prisma
     ├── 📄 resurring-transaction.prisma
@@ -56,7 +57,7 @@ src/
 📁 FILE: prisma\account.prisma
 ====================================================================================================
 
-// prisma/models/account.prisma
+// prisma/models/account.prisma (updated)
 
 model Account {
   id          String      @id @default(cuid())
@@ -69,14 +70,34 @@ model Account {
   notes       String?
   
   // Relationships
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  recurringTxns RecurringTransaction[]
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  recurringTxns   RecurringTransaction[]
+  balanceHistory  AccountBalanceHistory[] // NEW: Track all balance changes
   
   @@index([userId])
   @@index([isDefault])
   @@map("accounts")
+}
+
+model AccountBalanceHistory {
+  id          String   @id @default(cuid())
+  accountId   String
+  balance     Float    // New balance after change
+  changeAmount Float   // Positive = added, Negative = subtracted
+  changeType  String   // "DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "TRANSFER"
+  description String?
+  referenceId String?  // Can link to transaction ID or transfer ID
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  @@index([accountId])
+  @@index([createdAt])
+  @@index([changeType])
+  @@map("account_balance_history")
 }
 
 ====================================================================================================
