@@ -21,6 +21,7 @@ export default function ApiDocs() {
 				persistAuthorization={true}
 				displayRequestDuration={true}
 				withCredentials={true}
+				defaultModelExpandDepth={-1}
 				requestInterceptor={(req) => {
 					// ✅ Force cookies from Swagger UI's authorization
 					console.log("Cookie header present:", req.headers.Cookie);

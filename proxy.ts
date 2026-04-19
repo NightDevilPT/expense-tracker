@@ -24,42 +24,61 @@ const PUBLIC_ROUTES = [
 ];
 
 // proxy.ts - Rate limit configuration
+
 const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
-	// Auth routes
+	// ==================== AUTH ROUTES ====================
 	"/api/auth/login": { windowMs: 60_000, maxRequests: 5 },
 	"/api/auth/request-otp": { windowMs: 60_000, maxRequests: 3 },
 	"/api/auth/verify-otp": { windowMs: 60_000, maxRequests: 5 },
 	"/api/auth/logout": { windowMs: 60_000, maxRequests: 60 },
 	"/api/auth/me": { windowMs: 60_000, maxRequests: 30 },
 
-	// Category routes
+	// ==================== CATEGORY ROUTES ====================
 	"/api/categories": { windowMs: 60_000, maxRequests: 60 },
 	"/api/categories/*": { windowMs: 60_000, maxRequests: 30 },
 
-	// Tag routes
+	// ==================== TAG ROUTES ====================
 	"/api/tags": { windowMs: 60_000, maxRequests: 60 },
 	"/api/tags/popular": { windowMs: 60_000, maxRequests: 30 },
 	"/api/tags/*": { windowMs: 60_000, maxRequests: 30 },
 
-	// User routes
+	// ==================== USER ROUTES ====================
 	"/api/user/*": { windowMs: 60_000, maxRequests: 30 },
 
-	// Account routes
+	// ==================== ACCOUNT ROUTES ====================
 	"/api/accounts": { windowMs: 60_000, maxRequests: 60 },
 	"/api/accounts/*": { windowMs: 60_000, maxRequests: 30 },
 	"/api/accounts/*/history": { windowMs: 60_000, maxRequests: 30 },
 	"/api/accounts/*/add-balance": { windowMs: 60_000, maxRequests: 10 },
 
-	// Transaction API rate limits
+	// ==================== TRANSACTION ROUTES ====================
 	"/api/transactions": { windowMs: 60_000, maxRequests: 60 },
 	"/api/transactions/summary": { windowMs: 60_000, maxRequests: 30 },
 	"/api/transactions/bulk": { windowMs: 60_000, maxRequests: 10 },
 	"/api/transactions/export": { windowMs: 60_000, maxRequests: 10 },
 
-	// OpenAPI documentation
+	// ==================== BUDGET ROUTES ====================
+	"/api/budgets": { windowMs: 60_000, maxRequests: 30 },
+	"/api/budgets/current": { windowMs: 60_000, maxRequests: 10 },
+	"/api/budgets/alerts": { windowMs: 60_000, maxRequests: 20 },
+
+	// ==================== SAVINGS GOALS ROUTES ====================
+	"/api/savings-goals": { windowMs: 60_000, maxRequests: 30 },
+	"/api/savings-goals/progress": { windowMs: 60_000, maxRequests: 20 },
+	"/api/savings-goals/*": { windowMs: 60_000, maxRequests: 20 },
+	"/api/savings-goals/*/contribute": { windowMs: 60_000, maxRequests: 10 },
+
+	// ==================== RECURRING TRANSACTIONS ROUTES ====================
+	"/api/recurring": { windowMs: 60_000, maxRequests: 30 },
+	"/api/recurring/upcoming": { windowMs: 60_000, maxRequests: 20 },
+	"/api/recurring/*": { windowMs: 60_000, maxRequests: 20 },
+	"/api/recurring/*/pause": { windowMs: 60_000, maxRequests: 10 },
+	"/api/recurring/*/resume": { windowMs: 60_000, maxRequests: 10 },
+
+	// ==================== OPENAPI DOCUMENTATION ====================
 	"/api/open-api": { windowMs: 60_000, maxRequests: 100 },
 
-	// Default fallback
+	// ==================== DEFAULT FALLBACK ====================
 	default: { windowMs: 60_000, maxRequests: 30 },
 };
 

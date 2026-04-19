@@ -102,6 +102,83 @@ import {
 	transactionExportTags,
 } from "@/app/api/transactions/export/open-api";
 
+import {
+	budgetPaths,
+	budgetSchemas,
+	budgetTags,
+} from "@/app/api/budgets/open-api";
+
+import {
+	budgetByIdPaths,
+	budgetByIdSchemas,
+	budgetByIdTags,
+} from "@/app/api/budgets/[id]/open-api";
+
+import {
+	budgetCurrentPaths,
+	budgetCurrentSchemas,
+	budgetCurrentTags,
+} from "@/app/api/budgets/current/open-api";
+
+import {
+	budgetAlertsPaths,
+	budgetAlertsSchemas,
+	budgetAlertsTags,
+} from "@/app/api/budgets/alerts/open-api";
+
+import {
+	savingsGoalPaths,
+	savingsGoalSchemas,
+	savingsGoalTags,
+} from "@/app/api/savings-goals/open-api";
+
+import {
+	savingsGoalByIdPaths,
+	savingsGoalByIdSchemas,
+	savingsGoalByIdTags,
+} from "@/app/api/savings-goals/[id]/open-api";
+
+import {
+	savingsGoalProgressPaths,
+	savingsGoalProgressSchemas,
+	savingsGoalProgressTags,
+} from "@/app/api/savings-goals/progress/open-api";
+import {
+	savingsGoalContributePaths,
+	savingsGoalContributeSchemas,
+	savingsGoalContributeTags,
+} from "@/app/api/savings-goals/[id]/contribute/open-api";
+
+import {
+	recurringPaths,
+	recurringSchemas,
+	recurringTags,
+} from "@/app/api/recurring/open-api";
+
+import {
+	recurringUpcomingPaths,
+	recurringUpcomingSchemas,
+	recurringUpcomingTags,
+} from "@/app/api/recurring/upcoming/open-api";
+
+import {
+	recurringByIdPaths,
+	recurringByIdSchemas,
+	recurringByIdTags,
+} from "@/app/api/recurring/[id]/open-api";
+
+import {
+	recurringPausePaths,
+	recurringPauseSchemas,
+	recurringPauseTags,
+} from "@/app/api/recurring/[id]/pause/open-api";
+
+import {
+	recurringResumePaths,
+	recurringResumeSchemas,
+	recurringResumeTags,
+} from "@/app/api/recurring/[id]/resume/open-api";
+
 export const allPaths: OpenAPIV3.PathsObject = {
 	...requestOtpPaths,
 	...loginOtpPaths,
@@ -122,6 +199,19 @@ export const allPaths: OpenAPIV3.PathsObject = {
 	...transactionSummaryPaths,
 	...transactionBulkPaths,
 	...transactionExportPaths,
+	...budgetPaths,
+	...budgetByIdPaths,
+	...budgetCurrentPaths,
+	...budgetAlertsPaths,
+	...savingsGoalPaths,
+	...savingsGoalByIdPaths,
+	...savingsGoalProgressPaths,
+	...savingsGoalContributePaths,
+	...recurringPaths,
+	...recurringUpcomingPaths,
+	...recurringByIdPaths,
+	...recurringPausePaths,
+	...recurringResumePaths,
 };
 
 export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
@@ -146,6 +236,19 @@ export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
 	...transactionSummarySchemas,
 	...transactionBulkSchemas,
 	...transactionExportSchemas,
+	...budgetSchemas,
+	...budgetByIdSchemas,
+	...budgetCurrentSchemas,
+	...budgetAlertsSchemas,
+	...savingsGoalSchemas,
+	...savingsGoalByIdSchemas,
+	...savingsGoalProgressSchemas,
+	...savingsGoalContributeSchemas,
+	...recurringSchemas,
+	...recurringUpcomingSchemas,
+	...recurringByIdSchemas,
+	...recurringPauseSchemas,
+	...recurringResumeSchemas,
 };
 
 export const allTags: OpenAPIV3.TagObject[] = [
@@ -168,4 +271,17 @@ export const allTags: OpenAPIV3.TagObject[] = [
 	...transactionSummaryTags,
 	...transactionBulkTags,
 	...transactionExportTags,
+	...budgetTags,
+	...budgetByIdTags,
+	...budgetCurrentTags,
+	...budgetAlertsTags,
+	...savingsGoalTags,
+	...savingsGoalByIdTags,
+	...savingsGoalProgressTags,
+	...savingsGoalContributeTags,
+	...recurringTags,
+	...recurringUpcomingTags,
+	...recurringByIdTags,
+	...recurringPauseTags,
+	...recurringResumeTags,
 ];

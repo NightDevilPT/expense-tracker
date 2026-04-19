@@ -8,17 +8,15 @@ model Budget {
   endDate        DateTime?
   alertThreshold Float        @default(80)
   rollover       Boolean      @default(false)
-  
-  // Computed fields (stored for performance)
   spent          Float        @default(0)
   remaining      Float        @default(0)
-  
-  // Relationships
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId     String?
   category       Category?    @relation(fields: [categoryId], references: [id])
-  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
   @@unique([userId, categoryId, period, startDate])
   @@index([userId])
   @@index([categoryId])

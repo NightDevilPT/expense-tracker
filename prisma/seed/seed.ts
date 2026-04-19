@@ -19,6 +19,9 @@ const prisma = new PrismaClient();
 const CONFIG = {
 	USERS: 3,
 	TRANSACTIONS_PER_USER: 50,
+	BUDGETS_PER_USER: 4,
+	SAVINGS_GOALS_PER_USER: 3,
+	RECURRING_TRANSACTIONS_PER_USER: 4,
 };
 
 // ==================== STATIC DATA ====================
@@ -44,19 +47,20 @@ const LAST_NAMES = [
 	"Davis",
 ];
 
+// Lucide icon names (not emojis)
 const EXPENSE_CATEGORIES = [
-	{ name: "Food & Dining", icon: "🍔", color: "#FF5733" },
-	{ name: "Transportation", icon: "🚗", color: "#33FF57" },
-	{ name: "Shopping", icon: "🛍️", color: "#3357FF" },
-	{ name: "Entertainment", icon: "🎬", color: "#FF33F5" },
-	{ name: "Bills & Utilities", icon: "💡", color: "#F5FF33" },
-	{ name: "Healthcare", icon: "🏥", color: "#33FFF5" },
+	{ name: "Food & Dining", icon: "Utensils", color: "#FF5733" },
+	{ name: "Transportation", icon: "Car", color: "#33FF57" },
+	{ name: "Shopping", icon: "ShoppingBag", color: "#3357FF" },
+	{ name: "Entertainment", icon: "Clapperboard", color: "#FF33F5" },
+	{ name: "Bills & Utilities", icon: "Lightbulb", color: "#F5FF33" },
+	{ name: "Healthcare", icon: "Stethoscope", color: "#33FFF5" },
 ];
 
 const INCOME_CATEGORIES = [
-	{ name: "Salary", icon: "💰", color: "#33FF83" },
-	{ name: "Freelance", icon: "💻", color: "#8333FF" },
-	{ name: "Investment", icon: "📈", color: "#FF33A8" },
+	{ name: "Salary", icon: "Banknote", color: "#33FF83" },
+	{ name: "Freelance", icon: "Laptop", color: "#8333FF" },
+	{ name: "Investment", icon: "TrendingUp", color: "#FF33A8" },
 ];
 
 const TAG_NAMES = [
@@ -75,7 +79,45 @@ const ACCOUNT_TYPES: AccountType[] = [
 	AccountType.CREDIT_CARD,
 ];
 
-const CURRENCIES = ["USD", "EUR", "GBP"];
+const CURRENCIES = ["USD", "EUR", "GBP", "INR"];
+
+const BUDGET_NAMES = [
+	"Monthly Groceries",
+	"Weekend Fun",
+	"Transportation",
+	"Shopping",
+	"Utilities",
+	"Entertainment",
+];
+
+const SAVINGS_GOAL_NAMES = [
+	"Emergency Fund",
+	"Vacation",
+	"New Car",
+	"Home Down Payment",
+	"Wedding",
+	"Gadget Upgrade",
+];
+
+const SAVINGS_GOAL_NOTES = [
+	"6 months of expenses",
+	"Summer vacation to Bali",
+	"Down payment for new SUV",
+	"Saving for dream home",
+	"Big day coming up",
+	"New laptop and phone",
+];
+
+const RECURRING_TRANSACTION_NAMES = [
+	"Netflix Subscription",
+	"Spotify Premium",
+	"Gym Membership",
+	"Rent Payment",
+	"Internet Bill",
+	"Phone Bill",
+	"Cloud Storage",
+	"Insurance Premium",
+];
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -86,6 +128,12 @@ function getRandomInt(min: number, max: number): number {
 function getRandomDate(daysBack: number): Date {
 	const date = new Date();
 	date.setDate(date.getDate() - getRandomInt(1, daysBack));
+	return date;
+}
+
+function getFutureDate(daysAhead: number): Date {
+	const date = new Date();
+	date.setDate(date.getDate() + getRandomInt(30, daysAhead));
 	return date;
 }
 
@@ -106,16 +154,47 @@ function getRandomElements<T>(array: T[], count: number): T[] {
 	return shuffled.slice(0, count);
 }
 
+function calculateNextDueDate(
+	startDate: Date,
+	frequency: RecurringFrequency,
+	interval: number,
+): Date {
+	const nextDate = new Date(startDate);
+
+	switch (frequency) {
+		case RecurringFrequency.DAILY:
+			nextDate.setDate(nextDate.getDate() + interval);
+			break;
+		case RecurringFrequency.WEEKLY:
+			nextDate.setDate(nextDate.getDate() + interval * 7);
+			break;
+		case RecurringFrequency.MONTHLY:
+			nextDate.setMonth(nextDate.getMonth() + interval);
+			break;
+		case RecurringFrequency.YEARLY:
+			nextDate.setFullYear(nextDate.getFullYear() + interval);
+			break;
+		case RecurringFrequency.CUSTOM:
+			nextDate.setMonth(nextDate.getMonth() + interval);
+			break;
+	}
+
+	return nextDate;
+}
+
 // ==================== MAIN SEED FUNCTION ====================
 
 async function main() {
 	console.log("\n🌱 Starting database seed...");
-	console.log("=".repeat(50));
+	console.log("=".repeat(60));
 
 	// ==================== CLEAN UP ====================
 	console.log("\n🧹 Cleaning up existing data...");
 
-	await prisma.$transaction([
+	const deleteOperations = [
+		prisma.notification.deleteMany(),
+		prisma.exportHistory.deleteMany(),
+		prisma.auditLog.deleteMany(),
 		prisma.attachment.deleteMany(),
 		prisma.transactionTag.deleteMany(),
 		prisma.transaction.deleteMany(),
@@ -126,8 +205,11 @@ async function main() {
 		prisma.account.deleteMany(),
 		prisma.tag.deleteMany(),
 		prisma.category.deleteMany(),
+		prisma.oTPSession.deleteMany(),
 		prisma.user.deleteMany(),
-	]);
+	];
+
+	await prisma.$transaction(deleteOperations);
 
 	console.log("✅ Cleanup complete");
 
@@ -140,7 +222,7 @@ async function main() {
 		const lastName = LAST_NAMES[i % LAST_NAMES.length];
 		const user = await prisma.user.create({
 			data: {
-				email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+				email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@gmail.com`,
 				passwordHash: "hashed_password_123",
 				name: `${firstName} ${lastName}`,
 				avatar: null,
@@ -216,7 +298,10 @@ async function main() {
 				data: {
 					name: TAG_NAMES[i],
 					color:
-						"#" + Math.floor(Math.random() * 16777215).toString(16),
+						"#" +
+						Math.floor(Math.random() * 16777215)
+							.toString(16)
+							.padStart(6, "0"),
 					userId: user.id,
 				},
 			});
@@ -233,18 +318,31 @@ async function main() {
 
 	for (const user of users) {
 		const userAccounts: Account[] = [];
+
+		const accountNames = [
+			"Cash",
+			"HDFC Savings",
+			"ICICI Current",
+			"SBI Salary",
+			"Kotak Zero",
+			"Axis Priority",
+		];
+
 		for (let i = 0; i < ACCOUNT_TYPES.length; i++) {
-			const initialBalance = getRandomAmount(100, 5000);
+			const initialBalance = getRandomAmount(1000, 25000);
 			const account = await prisma.account.create({
 				data: {
-					name: `${ACCOUNT_TYPES[i]} Account`,
+					name: `${accountNames[i]} Account`,
 					type: ACCOUNT_TYPES[i],
 					balance: initialBalance,
 					currency: user.currency,
 					isDefault: i === 0,
 					color:
-						"#" + Math.floor(Math.random() * 16777215).toString(16),
-					notes: null,
+						"#" +
+						Math.floor(Math.random() * 16777215)
+							.toString(16)
+							.padStart(6, "0"),
+					notes: i === 0 ? "Primary account" : null,
 					userId: user.id,
 				},
 			});
@@ -267,6 +365,98 @@ async function main() {
 		);
 	}
 
+	// ==================== CREATE RECURRING TRANSACTIONS ====================
+	console.log("\n🔄 Creating recurring transactions...");
+
+	let totalRecurringTransactions = 0;
+	const allRecurringTransactions = new Map<string, any[]>();
+
+	for (const user of users) {
+		const userCategories = allCategories.get(user.id) || [];
+		const userAccounts = allAccounts.get(user.id) || [];
+		const userRecurring: any[] = [];
+
+		const expenseCategories = userCategories.filter(
+			(c: Category) => c.type === TransactionType.EXPENSE,
+		);
+		const incomeCategories = userCategories.filter(
+			(c: Category) => c.type === TransactionType.INCOME,
+		);
+
+		for (let i = 0; i < CONFIG.RECURRING_TRANSACTIONS_PER_USER; i++) {
+			const isIncome = i === 0; // First one is income (salary), rest expenses
+			const type = isIncome
+				? TransactionType.INCOME
+				: TransactionType.EXPENSE;
+			const name = isIncome
+				? "Monthly Salary"
+				: RECURRING_TRANSACTION_NAMES[
+						i % RECURRING_TRANSACTION_NAMES.length
+					];
+
+			const amount = isIncome
+				? getRandomAmount(30000, 80000)
+				: getRandomAmount(100, 2000);
+
+			const category = isIncome
+				? incomeCategories.find((c) => c.name === "Salary") ||
+					getRandomElement(incomeCategories)
+				: getRandomElement(expenseCategories);
+
+			const account = getRandomElement(userAccounts);
+
+			const frequency = isIncome
+				? RecurringFrequency.MONTHLY
+				: getRandomElement([
+						RecurringFrequency.MONTHLY,
+						RecurringFrequency.MONTHLY,
+						RecurringFrequency.WEEKLY,
+						RecurringFrequency.YEARLY,
+					]);
+
+			const interval = 1;
+			const startDate = getRandomDate(30);
+			const nextDueDate = calculateNextDueDate(
+				startDate,
+				frequency,
+				interval,
+			);
+
+			const recurringTransaction =
+				await prisma.recurringTransaction.create({
+					data: {
+						name,
+						amount,
+						type,
+						frequency,
+						interval,
+						startDate,
+						endDate:
+							Math.random() < 0.2 ? getFutureDate(365) : null,
+						nextDueDate,
+						isActive: Math.random() < 0.9,
+						description: isIncome
+							? "Monthly salary credit"
+							: `Monthly ${name.toLowerCase()}`,
+						userId: user.id,
+						categoryId: category.id,
+						accountId: account.id,
+					},
+				});
+
+			userRecurring.push(recurringTransaction);
+			totalRecurringTransactions++;
+		}
+
+		allRecurringTransactions.set(user.id, userRecurring);
+		console.log(
+			`   ✅ ${user.name}: ${userRecurring.length} recurring transactions created`,
+		);
+	}
+	console.log(
+		`   📊 Total recurring transactions: ${totalRecurringTransactions}`,
+	);
+
 	// ==================== CREATE TRANSACTIONS ====================
 	console.log("\n💸 Creating transactions...");
 
@@ -276,6 +466,7 @@ async function main() {
 		const userCategories = allCategories.get(user.id) || [];
 		const userAccounts = allAccounts.get(user.id) || [];
 		const userTags = allTags.get(user.id) || [];
+		const userRecurring = allRecurringTransactions.get(user.id) || [];
 
 		const expenseCategories = userCategories.filter(
 			(c: Category) => c.type === TransactionType.EXPENSE,
@@ -297,13 +488,30 @@ async function main() {
 				: getRandomElement(expenseCategories);
 			const account = getRandomElement(userAccounts);
 			const date = getRandomDate(90);
+
+			const descriptions = {
+				income: [
+					"Monthly Salary",
+					"Freelance Project",
+					"Performance Bonus",
+					"Tax Refund",
+					"Dividend Payment",
+				],
+				expense: [
+					"Grocery Shopping",
+					"Uber Ride",
+					"Netflix Subscription",
+					"Amazon Purchase",
+					"Restaurant Dinner",
+					"Coffee Shop",
+					"Phone Bill",
+					"Gym Membership",
+				],
+			};
+
 			const description = isIncome
-				? ["Salary", "Freelance", "Bonus", "Refund"][
-						Math.floor(Math.random() * 4)
-					]
-				: ["Groceries", "Uber", "Netflix", "Shopping", "Restaurant"][
-						Math.floor(Math.random() * 5)
-					];
+				? getRandomElement(descriptions.income)
+				: getRandomElement(descriptions.expense);
 
 			const balanceChange =
 				type === TransactionType.INCOME ? amount : -amount;
@@ -313,16 +521,26 @@ async function main() {
 				data: { balance: { increment: balanceChange } },
 			});
 
+			// Randomly link to recurring transaction (10% chance)
+			const linkedRecurringId =
+				Math.random() < 0.1 && userRecurring.length > 0
+					? getRandomElement(userRecurring).id
+					: null;
+
 			const transaction = await prisma.transaction.create({
 				data: {
 					amount,
 					type,
 					description,
 					date,
-					notes: null,
+					notes:
+						Math.random() < 0.2
+							? "Need to track this better"
+							: null,
 					userId: user.id,
 					categoryId: category.id,
 					accountId: account.id,
+					recurringTxnId: linkedRecurringId,
 				},
 			});
 
@@ -365,23 +583,140 @@ async function main() {
 	}
 	console.log(`   📊 Total transactions: ${totalTransactions}`);
 
+	// ==================== CREATE BUDGETS ====================
+	console.log("\n📊 Creating budgets...");
+
+	let totalBudgets = 0;
+
+	for (const user of users) {
+		const userCategories = allCategories.get(user.id) || [];
+		const expenseCategories = userCategories.filter(
+			(c: Category) => c.type === TransactionType.EXPENSE,
+		);
+
+		for (let i = 0; i < CONFIG.BUDGETS_PER_USER; i++) {
+			const category = getRandomElement(expenseCategories);
+			const budgetName = BUDGET_NAMES[i % BUDGET_NAMES.length];
+			const period = getRandomElement([
+				BudgetPeriod.MONTHLY,
+				BudgetPeriod.WEEKLY,
+				BudgetPeriod.MONTHLY,
+			]);
+
+			const amount =
+				period === BudgetPeriod.MONTHLY
+					? getRandomAmount(2000, 15000)
+					: getRandomAmount(500, 3000);
+
+			const startDate = new Date();
+			startDate.setDate(1);
+
+			const budget = await prisma.budget.create({
+				data: {
+					amount,
+					period,
+					startDate,
+					endDate: null,
+					alertThreshold: getRandomInt(70, 90),
+					rollover: Math.random() < 0.3,
+					spent: getRandomAmount(amount * 0.2, amount * 0.9),
+					remaining: 0,
+					userId: user.id,
+					categoryId: category.id,
+				},
+			});
+
+			// Update remaining
+			await prisma.budget.update({
+				where: { id: budget.id },
+				data: { remaining: budget.amount - budget.spent },
+			});
+
+			totalBudgets++;
+		}
+		console.log(
+			`   ✅ ${user.name}: ${CONFIG.BUDGETS_PER_USER} budgets created`,
+		);
+	}
+	console.log(`   📊 Total budgets: ${totalBudgets}`);
+
+	// ==================== CREATE SAVINGS GOALS ====================
+	console.log("\n🎯 Creating savings goals...");
+
+	let totalSavingsGoals = 0;
+
+	for (const user of users) {
+		const userCategories = allCategories.get(user.id) || [];
+
+		for (let i = 0; i < CONFIG.SAVINGS_GOALS_PER_USER; i++) {
+			const goalName = SAVINGS_GOAL_NAMES[i % SAVINGS_GOAL_NAMES.length];
+			const targetAmount = getRandomAmount(10000, 200000);
+			const currentAmount = getRandomAmount(
+				targetAmount * 0.1,
+				targetAmount * 0.8,
+			);
+			const deadline = getFutureDate(365);
+			const status =
+				currentAmount >= targetAmount
+					? SavingsGoalStatus.COMPLETED
+					: SavingsGoalStatus.ACTIVE;
+
+			const progress = (currentAmount / targetAmount) * 100;
+			const daysRemaining = Math.max(
+				0,
+				Math.ceil(
+					(deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+				),
+			);
+
+			const savingsGoal = await prisma.savingsGoal.create({
+				data: {
+					name: goalName,
+					targetAmount,
+					currentAmount,
+					deadline,
+					status,
+					notes: SAVINGS_GOAL_NOTES[i % SAVINGS_GOAL_NOTES.length],
+					progress,
+					daysRemaining,
+					userId: user.id,
+					linkedCategoryId:
+						Math.random() < 0.5
+							? getRandomElement(userCategories).id
+							: null,
+				},
+			});
+
+			totalSavingsGoals++;
+		}
+		console.log(
+			`   ✅ ${user.name}: ${CONFIG.SAVINGS_GOALS_PER_USER} savings goals created`,
+		);
+	}
+	console.log(`   📊 Total savings goals: ${totalSavingsGoals}`);
+
 	// ==================== FINAL SUMMARY ====================
-	console.log("\n" + "=".repeat(50));
+	console.log("\n" + "=".repeat(60));
 	console.log("📊 SEED COMPLETE SUMMARY");
-	console.log("=".repeat(50));
+	console.log("=".repeat(60));
 	console.log(`👤 Users: ${await prisma.user.count()}`);
 	console.log(`📂 Categories: ${await prisma.category.count()}`);
 	console.log(`🏷️ Tags: ${await prisma.tag.count()}`);
 	console.log(`💰 Accounts: ${await prisma.account.count()}`);
+	console.log(
+		`🔄 Recurring Transactions: ${await prisma.recurringTransaction.count()}`,
+	);
 	console.log(`💸 Transactions: ${await prisma.transaction.count()}`);
+	console.log(`📊 Budgets: ${await prisma.budget.count()}`);
+	console.log(`🎯 Savings Goals: ${await prisma.savingsGoal.count()}`);
 	console.log(`🔗 Transaction Tags: ${await prisma.transactionTag.count()}`);
-	console.log("=".repeat(50));
+	console.log("=".repeat(60));
 
-	console.log("\n🔑 Test Users:");
-	console.log("-".repeat(50));
+	console.log("\n🔑 Test Users (use these IDs for API testing):");
+	console.log("-".repeat(60));
 	for (const user of users) {
 		console.log(`   📧 ${user.email}`);
-		console.log(`   🆔 User ID: ${user.id}`);
+		console.log(`   🆔 ${user.id}`);
 		console.log("");
 	}
 
