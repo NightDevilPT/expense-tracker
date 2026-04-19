@@ -17,17 +17,49 @@ const PUBLIC_ROUTES = [
 	"/api/auth/login",
 	"/api/auth/request-otp",
 	"/api/auth/verify-otp",
-	"/api/auth/logout"
+	"/api/auth/logout",
+	"/api/open-api", // ✅ Added - OpenAPI JSON endpoint
+	"/api/docs", // ✅ Added - Swagger UI page (if you serve it via API route)
 	// ... etc
 ];
 
-// Rate limit configuration per route pattern
+// proxy.ts - Rate limit configuration
 const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
+	// Auth routes
 	"/api/auth/login": { windowMs: 60_000, maxRequests: 5 },
 	"/api/auth/request-otp": { windowMs: 60_000, maxRequests: 3 },
+	"/api/auth/verify-otp": { windowMs: 60_000, maxRequests: 5 },
 	"/api/auth/logout": { windowMs: 60_000, maxRequests: 60 },
-	"/api/user": { windowMs: 60_000, maxRequests: 10 },
-	// ... etc
+	"/api/auth/me": { windowMs: 60_000, maxRequests: 30 },
+
+	// Category routes
+	"/api/categories": { windowMs: 60_000, maxRequests: 60 },
+	"/api/categories/*": { windowMs: 60_000, maxRequests: 30 },
+
+	// Tag routes
+	"/api/tags": { windowMs: 60_000, maxRequests: 60 },
+	"/api/tags/popular": { windowMs: 60_000, maxRequests: 30 },
+	"/api/tags/*": { windowMs: 60_000, maxRequests: 30 },
+
+	// User routes
+	"/api/user/*": { windowMs: 60_000, maxRequests: 30 },
+
+	// Account routes
+	"/api/accounts": { windowMs: 60_000, maxRequests: 60 },
+	"/api/accounts/*": { windowMs: 60_000, maxRequests: 30 },
+	"/api/accounts/*/history": { windowMs: 60_000, maxRequests: 30 },
+	"/api/accounts/*/add-balance": { windowMs: 60_000, maxRequests: 10 },
+
+	// Transaction routes
+	"/api/transactions": { windowMs: 60_000, maxRequests: 60 },
+	"/api/transactions/*": { windowMs: 60_000, maxRequests: 30 },
+	"/api/transactions/summary": { windowMs: 60_000, maxRequests: 30 },
+	"/api/transactions/recent": { windowMs: 60_000, maxRequests: 30 },
+
+	// OpenAPI documentation
+	"/api/open-api": { windowMs: 60_000, maxRequests: 100 },
+
+	// Default fallback
 	default: { windowMs: 60_000, maxRequests: 30 },
 };
 
@@ -125,6 +157,7 @@ export function proxy(request: NextRequest) {
 	if (!isPublicRoute(pathname)) {
 		const accessToken = request.cookies.get("accessToken")?.value;
 		const refreshToken = request.cookies.get("refreshToken")?.value;
+		console.log(accessToken, refreshToken, "CONSOLINH AR");
 
 		if (!accessToken || !refreshToken) {
 			const response = formatUnauthorized(

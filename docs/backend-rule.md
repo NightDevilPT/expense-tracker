@@ -1,10 +1,25 @@
-Here's the updated rule book as a clean document:
+Here's the complete updated rule book with all sections properly included:
 
 ---
 
 # Backend Rulebook — Next.js App Router API
 
-**Version:** 3.2 | **Routing:** App Router (`app/api/`) with named method exports | **Stack:** Next.js · Prisma · Zod · JWT · Logger · ResponseService
+**Version:** 3.5 | **Routing:** App Router (`app/api/`) with named method exports | **Stack:** Next.js · Prisma · Zod · JWT · Logger · ResponseService · OpenAPI · Proxy Auth
+
+---
+
+## Table of Contents
+
+1. [Project Structure](#1-project-structure)
+2. [File Responsibilities](#2-file-responsibilities)
+3. [Proxy Authentication & Rate Limiting](#3-proxy-authentication--rate-limiting)
+4. [OpenAPI Documentation Rules](#4-openapi-documentation-rules)
+5. [Route File Rules (Controller)](#5-route-file-rules-controller)
+6. [Response Service Pattern](#6-response-service-pattern)
+7. [Lib Feature File Rules (Business Logic)](#7-lib-feature-file-rules-business-logic)
+8. [Logging Rules](#8-logging-rules)
+9. [Error Handling Contract](#9-error-handling-contract)
+10. [Quick Reference Cheatsheet](#10-quick-reference-cheatsheet)
 
 ---
 
@@ -14,147 +29,538 @@ Here's the updated rule book as a clean document:
 app/
   api/
     auth/
-      login/route.ts              ← Controller (HTTP layer only)
-      request-otp/route.ts        ← Controller (HTTP layer only)
+      login/
+        route.ts                    ← Controller (HTTP layer only)
+        open-api.ts                 ← OpenAPI spec for this route
+      request-otp/
+        route.ts                    ← Controller (HTTP layer only)
+        open-api.ts                 ← OpenAPI spec for this route
+      logout/
+        route.ts
+        open-api.ts
+      me/
+        route.ts
+        open-api.ts
     <feature>/
-      route.ts                    ← Non-dynamic controller
-      [id]/route.ts               ← Dynamic route — always await params
+      route.ts                      ← Non-dynamic controller
+      open-api.ts                   ← OpenAPI spec for collection routes
+      popular/
+        route.ts                    ← Sub-resource controller
+        open-api.ts                 ← OpenAPI spec for sub-resource
+      [id]/
+        route.ts                    ← Dynamic route — always await params
+        open-api.ts                 ← OpenAPI spec for single resource routes
 
 lib/
-  <feature>-service/              ← Feature folder naming: <feature>-service
-    index.ts                      ← Business logic + Prisma calls
-    types.ts                      ← Output types only (database/model interfaces)
-    validation.ts                 ← Zod schemas + validation functions + input types
+  <feature>-service/                ← Feature folder naming: <feature>-service
+    index.ts                        ← Business logic + Prisma calls
+    types.ts                        ← Output types only (database/model interfaces)
+    validation.ts                   ← Zod schemas + validation functions + input types
 
-  cookie-service/index.ts         ← JWT generation & validation
-  logger-service/index.ts         ← Structured console logger
-  response-service/index.ts       ← Format helpers (return plain objects)
+  cookie-service/
+    index.ts                        ← JWT generation & validation
+
+  logger-service/
+    index.ts                        ← Structured console logger
+
+  response-service/
+    index.ts                        ← Format helpers (return plain objects)
+
+  rate-limit/
+    index.ts                        ← Rate limiting storage and logic
+
+  swagger/                          ← OpenAPI/Swagger configuration
+    index.ts                        ← Main OpenAPI spec generator
+    schemas.ts                      ← Common response schemas and helpers
+    types.ts                        ← OpenAPI type definitions
+    security.ts                     ← Security scheme definitions
+    specs/
+      index.ts                      ← Aggregates all API specs
+
+prisma/
+  schema.prisma                     ← Database schema
+
+proxy.ts                            ← Central authentication & rate limiting (root)
 ```
 
 ---
 
 ## 2. File Responsibilities
 
-| Layer                | File                                  | Responsibility                                                       |
-| -------------------- | ------------------------------------- | -------------------------------------------------------------------- |
-| **Controller**       | `app/api/<feature>/route.ts`          | Parse request, validate, call service, format + return response, log |
-| **Business Logic**   | `lib/<feature>-service/index.ts`      | Prisma queries, data transformation, throw named errors              |
-| **Types**            | `lib/<feature>-service/types.ts`      | **Output types ONLY** — database/model shapes, params interfaces     |
-| **Validation**       | `lib/<feature>-service/validation.ts` | Zod schemas, validation functions, **input types**                   |
-| **Cookie Service**   | `lib/cookie-service/index.ts`         | Token generation, validation, payload extraction                     |
-| **Logger**           | `lib/logger-service/index.ts`         | Structured coloured console output                                   |
-| **Response Service** | `lib/response-service/index.ts`       | Returns plain response objects — **does NOT create NextResponse**    |
+| Layer                | File                                  | Responsibility                                                     |
+| -------------------- | ------------------------------------- | ------------------------------------------------------------------ |
+| **Proxy**            | `proxy.ts` (root)                     | Authentication, rate limiting, user context injection for ALL APIs |
+| **Controller**       | `app/api/<feature>/route.ts`          | Parse request, validate input, call service, format response, log  |
+| **OpenAPI Spec**     | `app/api/<feature>/open-api.ts`       | Define OpenAPI paths, schemas, parameters, and responses           |
+| **Business Logic**   | `lib/<feature>-service/index.ts`      | Prisma queries, data transformation, throw named errors            |
+| **Types**            | `lib/<feature>-service/types.ts`      | **Output types ONLY** — database/model shapes, params interfaces   |
+| **Validation**       | `lib/<feature>-service/validation.ts` | Zod schemas, validation functions, **input types**                 |
+| **Cookie Service**   | `lib/cookie-service/index.ts`         | Token generation, validation, payload extraction                   |
+| **Logger**           | `lib/logger-service/index.ts`         | Structured coloured console output                                 |
+| **Response Service** | `lib/response-service/index.ts`       | Returns plain response objects — **does NOT create NextResponse**  |
+| **Rate Limit**       | `lib/rate-limit/index.ts`             | In-memory rate limiting storage                                    |
+| **Swagger Service**  | `lib/swagger/index.ts`                | Generates complete OpenAPI specification                           |
 
 ### Hard Rules
 
+- **Authentication is handled centrally in `proxy.ts`** — Route files should NOT contain auth checks.
+- **Every new API endpoint MUST include an `open-api.ts` file** co-located with the route file.
+- **Every new API route MUST be configured in `proxy.ts`** (public routes or rate limits).
 - Route files must **never** contain Prisma calls.
 - Service files (`lib/`) must **never** import `NextRequest`, `NextResponse`, or response helpers.
 - Response helpers **return plain objects** — `NextResponse.json()` is always called in the **route file**.
 - Validation must **always** use Zod in `validation.ts`.
-- `types.ts` contains **only output types** (from database/models) and params interfaces like `GetCategoriesParams`, `PaginatedResult<T>`.
+- `types.ts` contains **only output types** (from database/models) and params interfaces.
 - `validation.ts` contains schemas, validation functions, **and input types**.
+- OpenAPI files must export `{feature}Paths`, `{feature}Schemas`, and `{feature}Tags`.
 
 ---
 
-## 3. Response Service Pattern
+## 3. Proxy Authentication & Rate Limiting
 
-> **Critical:** Response helpers return **plain objects**, not `NextResponse`. The route file always calls `NextResponse.json()`.
+### 3.1 Proxy Overview
 
-### 3.1 startTime Pattern
+The `proxy.ts` file handles **ALL** `/api/*` requests centrally for:
 
-Every route handler records `startTime` at the top, passed to every format helper.
+- Authentication validation
+- Rate limiting
+- User context injection
+
+**Route files should NOT contain authentication checks** — this is handled by the proxy.
+
+### 3.2 Proxy Configuration
 
 ```ts
-const startTime = Date.now();
+// proxy.ts
+
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = [
+	"/api/auth/login",
+	"/api/auth/request-otp",
+	"/api/auth/verify-otp",
+	"/api/auth/logout",
+	"/api/open-api",
+	"/api/docs",
+	// Add new public routes here
+];
+
+// Rate limit configuration per route pattern
+const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
+	"/api/auth/login": { windowMs: 60_000, maxRequests: 5 },
+	"/api/auth/request-otp": { windowMs: 60_000, maxRequests: 3 },
+	"/api/auth/logout": { windowMs: 60_000, maxRequests: 60 },
+	"/api/user": { windowMs: 60_000, maxRequests: 10 },
+	"/api/open-api": { windowMs: 60_000, maxRequests: 100 },
+	"/api/categories": { windowMs: 60_000, maxRequests: 30 },
+	"/api/tags": { windowMs: 60_000, maxRequests: 30 },
+	// Add new rate limits here
+	default: { windowMs: 60_000, maxRequests: 30 },
+};
 ```
 
-### 3.2 Format Helper Signatures
+### 3.3 Adding a New API to Proxy
+
+When creating a new API, you MUST update `proxy.ts`:
+
+**Step 1: Determine if the route is public or protected**
+
+- Public routes (no auth required): Add to `PUBLIC_ROUTES`
+- Protected routes (require auth): Do NOT add to `PUBLIC_ROUTES`
+
+**Step 2: Add rate limit configuration**
 
 ```ts
-// Success
-formatSuccess(data, startTime, { message?, pagination? })
-formatPaginated(data, startTime, pagination, message?)
-
-// Errors
-formatBadRequest(startTime, message, details?)
-formatUnauthorized(startTime, message, details?)
-formatForbidden(startTime, message, details?)
-formatNotFound(startTime, message, details?)
-formatConflict(startTime, message, details?)
-formatTooManyRequests(startTime, message, details?)
-formatInternalError(startTime, message, details?)
+const RATE_LIMITS = {
+	// ... existing
+	"/api/your-feature": { windowMs: 60_000, maxRequests: 30 },
+};
 ```
 
-### 3.3 Usage Pattern in Route
+**Step 3: Rate limit guidelines**
+| Route Type | Recommended Limit |
+|------------|-------------------|
+| Login/OTP | 3-5 requests/min |
+| Create/Update/Delete | 30 requests/min |
+| List/Get | 60 requests/min |
+| Public docs | 100 requests/min |
+
+### 3.4 User Context in Route Files
+
+The proxy injects user information into request headers:
 
 ```ts
-// ✅ Correct
-const response = formatSuccess(category, startTime, {
-	message: "Category retrieved successfully",
-});
-return NextResponse.json(response, { status: HttpStatus.OK });
-
-// ✅ Error path
-const response = formatNotFound(startTime, "Category not found");
-return NextResponse.json(response, { status: HttpStatus.NOT_FOUND });
+// In proxy.ts - User context injection
+requestHeaders.set("x-user-id", userPayload.id);
+requestHeaders.set("x-user-email", userPayload.email);
+requestHeaders.set("x-user-name", userPayload.name);
 ```
 
-### 3.4 formatPaginated Example
+**Route files access user info via headers:**
 
 ```ts
-const response = formatPaginated(
-	result.data,
-	startTime,
-	{
-		page: result.page,
-		limit: result.limit,
-		total: result.total,
-		totalPages: totalPages,
-		hasNext: result.page < totalPages,
-		hasPrev: result.page > 1,
+// app/api/categories/route.ts
+export async function GET(req: NextRequest) {
+	const userId = req.headers.get("x-user-id");
+	// NO auth check needed — proxy already validated
+}
+```
+
+### 3.5 Proxy Checklist for New APIs
+
+- [ ] Route added to `PUBLIC_ROUTES` (if public) OR intentionally omitted (if protected)
+- [ ] Rate limit configured in `RATE_LIMITS`
+- [ ] Rate limit values follow guidelines
+- [ ] Route file does NOT contain duplicate auth checks
+- [ ] Route file uses `x-user-id` header for user context
+
+---
+
+## 4. OpenAPI Documentation Rules
+
+### 4.1 Required Files Per API
+
+Every API route directory MUST include an `open-api.ts` file:
+
+```
+app/api/<feature>/
+  route.ts          ← API implementation
+  open-api.ts       ← REQUIRED: OpenAPI specification
+  [id]/
+    route.ts        ← Dynamic route implementation
+    open-api.ts     ← REQUIRED: OpenAPI specification
+```
+
+### 4.2 OpenAPI File Structure
+
+```ts
+// app/api/<feature>/open-api.ts
+import { OpenAPIV3 } from "openapi-types";
+import { successResponse, paginatedResponse } from "@/lib/swagger/schemas";
+
+// Define schemas
+const featureSchema: OpenAPIV3.SchemaObject = {
+	type: "object",
+	properties: {
+		id: { type: "string", format: "cuid", example: "clh1234567890abcdef" },
+		name: { type: "string", example: "Example Name" },
+		createdAt: { type: "string", format: "date-time" },
+		updatedAt: { type: "string", format: "date-time" },
 	},
-	"Categories retrieved successfully",
-);
-return NextResponse.json(response, { status: HttpStatus.OK });
+	required: ["id", "name", "createdAt", "updatedAt"],
+};
+
+const createFeatureSchema: OpenAPIV3.SchemaObject = {
+	type: "object",
+	properties: {
+		name: {
+			type: "string",
+			minLength: 1,
+			maxLength: 50,
+			example: "My Feature",
+		},
+	},
+	required: ["name"],
+};
+
+const updateFeatureSchema: OpenAPIV3.SchemaObject = {
+	type: "object",
+	properties: {
+		name: {
+			type: "string",
+			minLength: 1,
+			maxLength: 50,
+			example: "Updated Name",
+		},
+	},
+	minProperties: 1,
+};
+
+// Query parameters
+const getFeatureParameters: OpenAPIV3.ParameterObject[] = [
+	{
+		name: "page",
+		in: "query",
+		description: "Page number (starts from 1)",
+		required: false,
+		schema: { type: "integer", minimum: 1, default: 1 },
+	},
+	{
+		name: "limit",
+		in: "query",
+		description: "Items per page (max 100)",
+		required: false,
+		schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+	},
+	{
+		name: "search",
+		in: "query",
+		description: "Search term",
+		required: false,
+		schema: { type: "string" },
+	},
+];
+
+// Export paths
+export const featurePaths: OpenAPIV3.PathsObject = {
+	"/api/<feature>": {
+		get: {
+			summary: "List resources",
+			description: "Get paginated list of resources",
+			tags: ["FeatureName"],
+			parameters: getFeatureParameters,
+			responses: {
+				"200": {
+					description: "Resources retrieved successfully",
+					content: {
+						"application/json": {
+							schema: paginatedResponse(featureSchema),
+						},
+					},
+				},
+				"400": { $ref: "#/components/responses/BadRequest" },
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"500": { $ref: "#/components/responses/InternalServerError" },
+			},
+			security: [{ accessToken: [], refreshToken: [] }],
+		},
+		post: {
+			summary: "Create resource",
+			description: "Create a new resource",
+			tags: ["FeatureName"],
+			requestBody: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: createFeatureSchema,
+					},
+				},
+			},
+			responses: {
+				"201": {
+					description: "Resource created successfully",
+					content: {
+						"application/json": {
+							schema: successResponse(featureSchema),
+						},
+					},
+				},
+				"400": { $ref: "#/components/responses/BadRequest" },
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"409": { $ref: "#/components/responses/Conflict" },
+				"500": { $ref: "#/components/responses/InternalServerError" },
+			},
+			security: [{ accessToken: [], refreshToken: [] }],
+		},
+	},
+};
+
+// Export schemas
+export const featureSchemas: Record<string, OpenAPIV3.SchemaObject> = {
+	Feature: featureSchema,
+	CreateFeatureRequest: createFeatureSchema,
+	UpdateFeatureRequest: updateFeatureSchema,
+};
+
+// Export tags
+export const featureTags: OpenAPIV3.TagObject[] = [
+	{
+		name: "FeatureName",
+		description: "Description of this feature's endpoints",
+	},
+];
 ```
 
-### 3.5 HttpStatus Constants
+### 4.3 Dynamic Route OpenAPI Structure
 
 ```ts
-import { HttpStatus } from "@/lib/response-service";
+// app/api/<feature>/[id]/open-api.ts
+import { OpenAPIV3 } from "openapi-types";
+import { successResponse, emptySuccessResponse } from "@/lib/swagger/schemas";
 
-HttpStatus.OK; // 200
-HttpStatus.CREATED; // 201
-HttpStatus.BAD_REQUEST; // 400
-HttpStatus.UNAUTHORIZED; // 401
-HttpStatus.FORBIDDEN; // 403
-HttpStatus.NOT_FOUND; // 404
-HttpStatus.CONFLICT; // 409
-HttpStatus.TOO_MANY_REQUESTS; // 429
-HttpStatus.INTERNAL_SERVER_ERROR; // 500
+const idParameter: OpenAPIV3.ParameterObject = {
+	name: "id",
+	in: "path",
+	description: "Resource ID (CUID format)",
+	required: true,
+	schema: { type: "string", format: "cuid" },
+	example: "clh1234567890abcdef",
+};
+
+export const featureByIdPaths: OpenAPIV3.PathsObject = {
+	"/api/<feature>/{id}": {
+		get: {
+			summary: "Get resource by ID",
+			tags: ["FeatureName"],
+			parameters: [idParameter],
+			responses: {
+				"200": {
+					description: "Resource retrieved",
+					content: {
+						"application/json": {
+							schema: successResponse({
+								$ref: "#/components/schemas/Feature",
+							} as OpenAPIV3.SchemaObject),
+						},
+					},
+				},
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"404": { $ref: "#/components/responses/NotFound" },
+				"500": { $ref: "#/components/responses/InternalServerError" },
+			},
+			security: [{ accessToken: [], refreshToken: [] }],
+		},
+		put: {
+			summary: "Update resource",
+			tags: ["FeatureName"],
+			parameters: [idParameter],
+			requestBody: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: {
+							$ref: "#/components/schemas/UpdateFeatureRequest",
+						} as OpenAPIV3.SchemaObject,
+					},
+				},
+			},
+			responses: {
+				"200": {
+					description: "Resource updated",
+					content: {
+						"application/json": {
+							schema: successResponse({
+								$ref: "#/components/schemas/Feature",
+							} as OpenAPIV3.SchemaObject),
+						},
+					},
+				},
+				"400": { $ref: "#/components/responses/BadRequest" },
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"404": { $ref: "#/components/responses/NotFound" },
+				"409": { $ref: "#/components/responses/Conflict" },
+				"500": { $ref: "#/components/responses/InternalServerError" },
+			},
+			security: [{ accessToken: [], refreshToken: [] }],
+		},
+		delete: {
+			summary: "Delete resource",
+			tags: ["FeatureName"],
+			parameters: [idParameter],
+			responses: {
+				"200": {
+					description: "Resource deleted",
+					content: {
+						"application/json": {
+							schema: emptySuccessResponse(),
+						},
+					},
+				},
+				"401": { $ref: "#/components/responses/Unauthorized" },
+				"403": { $ref: "#/components/responses/Forbidden" },
+				"404": { $ref: "#/components/responses/NotFound" },
+				"409": { $ref: "#/components/responses/Conflict" },
+				"500": { $ref: "#/components/responses/InternalServerError" },
+			},
+			security: [{ accessToken: [], refreshToken: [] }],
+		},
+	},
+};
+
+export const featureByIdSchemas: Record<string, OpenAPIV3.SchemaObject> = {};
+export const featureByIdTags: OpenAPIV3.TagObject[] = [];
 ```
 
-### 3.6 When to Use Which Helper
+### 4.4 Registering APIs in Swagger Specs
 
-| Situation                      | Helper                         | Status |
-| ------------------------------ | ------------------------------ | ------ |
-| Successful fetch or update     | `formatSuccess`                | 200    |
-| Resource created               | `formatSuccess` with `CREATED` | 201    |
-| List with pagination           | `formatPaginated`              | 200    |
-| Zod / validation fails         | `formatBadRequest`             | 400    |
-| Missing or invalid token       | `formatUnauthorized`           | 401    |
-| Valid token, no permission     | `formatForbidden`              | 403    |
-| Record not found               | `formatNotFound`               | 404    |
-| Duplicate / already exists     | `formatConflict`               | 409    |
-| Cannot delete due to relations | `formatConflict`               | 409    |
-| Rate limit hit                 | `formatTooManyRequests`        | 429    |
-| Unexpected server error        | `formatInternalError`          | 500    |
+After creating `open-api.ts` files, you MUST register them in `lib/swagger/specs/index.ts`:
+
+```ts
+// lib/swagger/specs/index.ts
+import { OpenAPIV3 } from "openapi-types";
+import { errorSchemas } from "../schemas";
+
+// Import all feature specs
+import {
+	featurePaths,
+	featureSchemas,
+	featureTags,
+} from "@/app/api/<feature>/open-api";
+import {
+	featureByIdPaths,
+	featureByIdSchemas,
+	featureByIdTags,
+} from "@/app/api/<feature>/[id]/open-api";
+
+export const allPaths: OpenAPIV3.PathsObject = {
+	...featurePaths,
+	...featureByIdPaths,
+	// ... other paths
+};
+
+export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
+	...errorSchemas,
+	...featureSchemas,
+	...featureByIdSchemas,
+	// ... other schemas
+};
+
+export const allTags: OpenAPIV3.TagObject[] = [
+	{
+		name: "FeatureName",
+		description: "Description of this feature",
+	},
+	...featureTags,
+	...featureByIdTags,
+	// ... other tags
+];
+```
+
+### 4.5 OpenAPI Checklist for New APIs
+
+- [ ] `open-api.ts` file created in the route directory
+- [ ] `open-api.ts` file created in the `[id]` directory (if dynamic route exists)
+- [ ] All request/response schemas defined with examples
+- [ ] Query parameters documented (for GET collection routes)
+- [ ] Path parameters documented (for dynamic routes)
+- [ ] Request body schema defined (for POST/PUT/PATCH)
+- [ ] All possible response status codes documented (200, 201, 400, 401, 403, 404, 409, 500)
+- [ ] Security requirements specified:
+    - `security: [{ accessToken: [], refreshToken: [] }]` for protected routes
+    - `security: []` for public routes
+- [ ] Tags assigned to group related endpoints
+- [ ] Exports added to `lib/swagger/specs/index.ts`
+- [ ] Schemas use proper types from `lib/<feature>-service/types.ts`
+- [ ] Examples use realistic data (e.g., `mike.williams@gmail.com` for email)
+
+### 4.6 Common Response Helpers
+
+```ts
+import {
+	successResponse, // For single item responses
+	paginatedResponse, // For list responses
+	emptySuccessResponse, // For DELETE responses
+} from "@/lib/swagger/schemas";
+```
+
+### 4.7 Security Scheme Reference
+
+All protected endpoints must use:
+
+```ts
+security: [{ accessToken: [], refreshToken: [] }];
+```
+
+Public endpoints must use:
+
+```ts
+security: [];
+```
 
 ---
 
-## 4. Route File Rules (Controller)
+## 5. Route File Rules (Controller)
 
-### 4.1 Structure — Non-Dynamic Route
+### 5.1 Structure — Non-Dynamic Route (WITHOUT Auth Checks)
 
 ```ts
 // app/api/categories/route.ts
@@ -165,12 +571,10 @@ import {
 	formatSuccess,
 	formatPaginated,
 	formatBadRequest,
-	formatUnauthorized,
 	formatConflict,
 	formatInternalError,
 	HttpStatus,
 } from "@/lib/response-service";
-import { CookieService } from "@/lib/cookie-service";
 import { getAllCategories, createCategory } from "@/lib/category-service";
 import { validateCreateCategory } from "@/lib/category-service/validation";
 
@@ -182,23 +586,11 @@ export async function GET(req: NextRequest) {
 	try {
 		logger.info("GET /api/categories called");
 
-		// Auth check
-		const accessToken = req.cookies.get("accessToken")?.value;
-		const refreshToken = req.cookies.get("refreshToken")?.value;
-		const user = CookieService.validateTokens(accessToken, refreshToken);
+		// ✅ User ID from proxy-injected header
+		const userId = req.headers.get("x-user-id");
 
-		if (!user) {
-			logger.warn("Unauthorized GET /api/categories");
-			const response = formatUnauthorized(
-				startTime,
-				"Authentication required",
-			);
-			return NextResponse.json(response, {
-				status: HttpStatus.UNAUTHORIZED,
-			});
-		}
+		// ❌ NO auth check needed — proxy already validated
 
-		// Parse query params
 		const url = new URL(req.url);
 		const page = parseInt(url.searchParams.get("page") || "1");
 		const limit = parseInt(url.searchParams.get("limit") || "20");
@@ -209,7 +601,6 @@ export async function GET(req: NextRequest) {
 			| "TRANSFER"
 			| undefined;
 
-		// Validate pagination params
 		if (isNaN(page) || page < 1) {
 			const response = formatBadRequest(
 				startTime,
@@ -230,8 +621,7 @@ export async function GET(req: NextRequest) {
 			});
 		}
 
-		// Call service
-		const result = await getAllCategories(user.id, {
+		const result = await getAllCategories(userId!, {
 			page,
 			limit,
 			search,
@@ -239,7 +629,6 @@ export async function GET(req: NextRequest) {
 		});
 		const totalPages = Math.ceil(result.total / result.limit);
 
-		// Format and return
 		const response = formatPaginated(
 			result.data,
 			startTime,
@@ -272,24 +661,11 @@ export async function POST(req: NextRequest) {
 	try {
 		logger.info("POST /api/categories called");
 
-		const accessToken = req.cookies.get("accessToken")?.value;
-		const refreshToken = req.cookies.get("refreshToken")?.value;
-		const user = CookieService.validateTokens(accessToken, refreshToken);
-
-		if (!user) {
-			logger.warn("Unauthorized POST /api/categories");
-			const response = formatUnauthorized(
-				startTime,
-				"Authentication required",
-			);
-			return NextResponse.json(response, {
-				status: HttpStatus.UNAUTHORIZED,
-			});
-		}
-
+		const userId = req.headers.get("x-user-id");
 		const body = await req.json();
 		const validatedData = validateCreateCategory(body);
-		const category = await createCategory(user.id, validatedData);
+
+		const category = await createCategory(userId!, validatedData);
 
 		const response = formatSuccess(category, startTime, {
 			message: "Category created successfully",
@@ -327,7 +703,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-### 4.2 Structure — Dynamic Route (`[id]`)
+### 5.2 Structure — Dynamic Route (`[id]`)
 
 > **Critical:** In Next.js App Router, params arrive as a **Promise**. Always `await params` before accessing.
 
@@ -339,14 +715,12 @@ import { Logger } from "@/lib/logger-service";
 import {
 	formatSuccess,
 	formatBadRequest,
-	formatUnauthorized,
 	formatNotFound,
 	formatForbidden,
 	formatConflict,
 	formatInternalError,
 	HttpStatus,
 } from "@/lib/response-service";
-import { CookieService } from "@/lib/cookie-service";
 import {
 	getCategoryById,
 	updateCategory,
@@ -369,23 +743,10 @@ export async function GET(
 		const { id } = await params; // ✅ Always await params
 		logger.info("GET /api/categories/[id] called", { id });
 
-		const accessToken = req.cookies.get("accessToken")?.value;
-		const refreshToken = req.cookies.get("refreshToken")?.value;
-		const user = CookieService.validateTokens(accessToken, refreshToken);
-
-		if (!user) {
-			logger.warn("Unauthorized GET /api/categories/[id]");
-			const response = formatUnauthorized(
-				startTime,
-				"Authentication required",
-			);
-			return NextResponse.json(response, {
-				status: HttpStatus.UNAUTHORIZED,
-			});
-		}
+		const userId = req.headers.get("x-user-id");
 
 		validateCategoryId(id);
-		const category = await getCategoryById(id, user.id);
+		const category = await getCategoryById(id, userId!);
 
 		const response = formatSuccess(category, startTime, {
 			message: "Category retrieved successfully",
@@ -431,24 +792,12 @@ export async function PUT(
 		const { id } = await params;
 		logger.info("PUT /api/categories/[id] called", { id });
 
-		const accessToken = req.cookies.get("accessToken")?.value;
-		const refreshToken = req.cookies.get("refreshToken")?.value;
-		const user = CookieService.validateTokens(accessToken, refreshToken);
-
-		if (!user) {
-			logger.warn("Unauthorized PUT /api/categories/[id]");
-			const response = formatUnauthorized(
-				startTime,
-				"Authentication required",
-			);
-			return NextResponse.json(response, {
-				status: HttpStatus.UNAUTHORIZED,
-			});
-		}
-
+		const userId = req.headers.get("x-user-id");
 		const body = await req.json();
 		const validatedData = validateUpdateCategory(body);
-		const category = await updateCategory(id, user.id, validatedData);
+
+		validateCategoryId(id);
+		const category = await updateCategory(id, userId!, validatedData);
 
 		const response = formatSuccess(category, startTime, {
 			message: "Category updated successfully",
@@ -502,22 +851,10 @@ export async function DELETE(
 		const { id } = await params;
 		logger.info("DELETE /api/categories/[id] called", { id });
 
-		const accessToken = req.cookies.get("accessToken")?.value;
-		const refreshToken = req.cookies.get("refreshToken")?.value;
-		const user = CookieService.validateTokens(accessToken, refreshToken);
+		const userId = req.headers.get("x-user-id");
 
-		if (!user) {
-			logger.warn("Unauthorized DELETE /api/categories/[id]");
-			const response = formatUnauthorized(
-				startTime,
-				"Authentication required",
-			);
-			return NextResponse.json(response, {
-				status: HttpStatus.UNAUTHORIZED,
-			});
-		}
-
-		await deleteCategory(id, user.id);
+		validateCategoryId(id);
+		await deleteCategory(id, userId!);
 
 		const response = formatSuccess(null, startTime, {
 			message: "Category deleted successfully",
@@ -572,9 +909,11 @@ export async function DELETE(
 }
 ```
 
-### 4.3 Setting Cookies in Response (Login Flow)
+### 5.3 Setting Cookies in Response (Login Flow)
 
 ```ts
+// app/api/auth/login/route.ts
+
 const response = formatSuccess({ user: userData }, startTime, {
 	message: "Login successful",
 });
@@ -602,7 +941,72 @@ return nextResponse;
 
 ---
 
-## 5. Lib Feature File Rules (Business Logic)
+## 6. Response Service Pattern
+
+> **Critical:** Response helpers return **plain objects**, not `NextResponse`. The route file always calls `NextResponse.json()`.
+
+### 6.1 startTime Pattern
+
+Every route handler records `startTime` at the top, passed to every format helper.
+
+```ts
+const startTime = Date.now();
+```
+
+### 6.2 Format Helper Signatures
+
+```ts
+// Success
+formatSuccess(data, startTime, { message?, pagination? })
+formatPaginated(data, startTime, pagination, message?)
+
+// Errors
+formatBadRequest(startTime, message, details?)
+formatUnauthorized(startTime, message, details?)
+formatForbidden(startTime, message, details?)
+formatNotFound(startTime, message, details?)
+formatConflict(startTime, message, details?)
+formatTooManyRequests(startTime, message, details?)
+formatInternalError(startTime, message, details?)
+```
+
+### 6.3 HttpStatus Constants
+
+```ts
+import { HttpStatus } from "@/lib/response-service";
+
+HttpStatus.OK; // 200
+HttpStatus.CREATED; // 201
+HttpStatus.BAD_REQUEST; // 400
+HttpStatus.UNAUTHORIZED; // 401
+HttpStatus.FORBIDDEN; // 403
+HttpStatus.NOT_FOUND; // 404
+HttpStatus.CONFLICT; // 409
+HttpStatus.TOO_MANY_REQUESTS; // 429
+HttpStatus.INTERNAL_SERVER_ERROR; // 500
+```
+
+### 6.4 When to Use Which Helper
+
+| Situation                      | Helper                         | Status |
+| ------------------------------ | ------------------------------ | ------ |
+| Successful fetch or update     | `formatSuccess`                | 200    |
+| Resource created               | `formatSuccess` with `CREATED` | 201    |
+| List with pagination           | `formatPaginated`              | 200    |
+| Zod / validation fails         | `formatBadRequest`             | 400    |
+| Missing or invalid token       | `formatUnauthorized`           | 401    |
+| Valid token, no permission     | `formatForbidden`              | 403    |
+| Record not found               | `formatNotFound`               | 404    |
+| Duplicate / already exists     | `formatConflict`               | 409    |
+| Cannot delete due to relations | `formatConflict`               | 409    |
+| Rate limit hit                 | `formatTooManyRequests`        | 429    |
+| Unexpected server error        | `formatInternalError`          | 500    |
+
+---
+
+## 7. Lib Feature File Rules (Business Logic)
+
+### 7.1 File Structure
 
 Every service folder under `lib/` contains exactly three files:
 
@@ -613,7 +1017,7 @@ lib/<feature>-service/
   index.ts        ← Prisma calls and business logic
 ```
 
-### 5.1 `types.ts` — Output Types Only
+### 7.2 `types.ts` — Output Types Only
 
 ```ts
 // lib/category-service/types.ts
@@ -629,11 +1033,6 @@ export interface Category {
 	userId: string | null;
 	createdAt?: Date;
 	updatedAt?: Date;
-}
-
-export interface CategoryWithStats extends Category {
-	transactionCount?: number;
-	totalAmount?: number;
 }
 
 export interface GetCategoriesParams {
@@ -653,30 +1052,25 @@ export interface PaginatedResult<T> {
 
 **Rules:**
 
-- Output/database types only.
-- Include params interfaces and pagination types.
-- No imports from `./validation`.
-- No logic, no Prisma imports, no Next.js imports.
+- Output/database types only
+- Include params interfaces and pagination types
+- No imports from `./validation`
+- No logic, no Prisma imports, no Next.js imports
 
-### 5.2 `validation.ts` — Zod Schemas + Input Types
+### 7.3 `validation.ts` — Zod Schemas + Input Types
 
 ```ts
 // lib/category-service/validation.ts
 
 import { z } from "zod";
 
-// ==================== SCHEMAS ====================
-
 export const createCategorySchema = z.object({
-	name: z
-		.string()
-		.min(1, "Name is required")
-		.max(50, "Name must be 50 characters or less"),
+	name: z.string().min(1).max(50),
 	type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
 	icon: z.string().max(50).nullable().optional(),
 	color: z
 		.string()
-		.regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format")
+		.regex(/^#[0-9A-Fa-f]{6}$/)
 		.nullable()
 		.optional(),
 	order: z.number().int().min(0).default(0).optional(),
@@ -684,15 +1078,11 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = z
 	.object({
-		name: z
-			.string()
-			.min(1, "Name is required")
-			.max(50, "Name must be 50 characters or less")
-			.optional(),
+		name: z.string().min(1).max(50).optional(),
 		icon: z.string().max(50).nullable().optional(),
 		color: z
 			.string()
-			.regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color format")
+			.regex(/^#[0-9A-Fa-f]{6}$/)
 			.nullable()
 			.optional(),
 		order: z.number().int().min(0).optional(),
@@ -702,8 +1092,6 @@ export const updateCategorySchema = z
 	});
 
 export const categoryIdSchema = z.string().cuid("Invalid category ID format");
-
-// ==================== VALIDATION FUNCTIONS ====================
 
 export function validateCreateCategory(data: unknown): CreateCategoryInput {
 	return createCategorySchema.parse(data);
@@ -717,20 +1105,18 @@ export function validateCategoryId(id: string): void {
 	categoryIdSchema.parse(id);
 }
 
-// ==================== INPUT TYPES ====================
-
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 ```
 
 **Rules:**
 
-- Zod exclusively — no manual validation logic.
-- `.parse()` throws `ZodError` automatically.
-- Export input types using `z.infer`.
-- Only import from `"zod"`.
+- Zod exclusively — no manual validation
+- `.parse()` throws `ZodError` automatically
+- Export input types using `z.infer`
+- Only import from `"zod"`
 
-### 5.3 `index.ts` — Business Logic
+### 7.4 `index.ts` — Business Logic
 
 ```ts
 // lib/category-service/index.ts
@@ -756,13 +1142,7 @@ export async function getAllCategories(
 	const limit = Math.min(100, Math.max(1, params.limit || 20));
 	const skip = (page - 1) * limit;
 
-	logger.info("Fetching all categories", {
-		userId,
-		page,
-		limit,
-		search: params.search,
-		type: params.type,
-	});
+	logger.info("Fetching all categories", { userId, page, limit });
 
 	const where: any = {
 		OR: [{ userId: userId }, { isDefault: true }],
@@ -776,43 +1156,17 @@ export async function getAllCategories(
 		where.type = params.type;
 	}
 
-	const total = await prisma.category.count({ where });
-	const categories = await prisma.category.findMany({
-		where,
-		skip,
-		take: limit,
-		orderBy: [{ order: "asc" }, { name: "asc" }],
-	});
-
-	logger.info("Categories fetched successfully", {
-		count: categories.length,
-		total,
-		page,
-		limit,
-	});
+	const [total, categories] = await Promise.all([
+		prisma.category.count({ where }),
+		prisma.category.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: [{ order: "asc" }, { name: "asc" }],
+		}),
+	]);
 
 	return { data: categories, total, page, limit };
-}
-
-export async function getCategoryById(
-	id: string,
-	userId: string,
-): Promise<Category> {
-	logger.info("Fetching category by ID", { id, userId });
-
-	validateCategoryId(id);
-
-	const category = await prisma.category.findFirst({
-		where: { id, OR: [{ userId: userId }, { isDefault: true }] },
-	});
-
-	if (!category) {
-		logger.warn("Category not found", { id, userId });
-		throw new Error("NOT_FOUND");
-	}
-
-	logger.info("Category fetched successfully", { id });
-	return category;
 }
 
 export async function createCategory(
@@ -828,10 +1182,6 @@ export async function createCategory(
 	});
 
 	if (existingCategory) {
-		logger.warn("Category already exists", {
-			userId,
-			name: validatedData.name,
-		});
 		throw new Error("ALREADY_EXISTS");
 	}
 
@@ -847,56 +1197,7 @@ export async function createCategory(
 		},
 	});
 
-	logger.info("Category created successfully", {
-		id: category.id,
-		name: category.name,
-	});
-	return category;
-}
-
-export async function updateCategory(
-	id: string,
-	userId: string,
-	data: UpdateCategoryInput,
-): Promise<Category> {
-	logger.info("Updating category", { id, userId });
-
-	validateCategoryId(id);
-	const validatedData = validateUpdateCategory(data);
-
-	const existingCategory = await prisma.category.findFirst({
-		where: { id, userId: userId },
-	});
-
-	if (!existingCategory) {
-		logger.warn("Category not found or access denied", { id, userId });
-		throw new Error("NOT_FOUND");
-	}
-
-	if (validatedData.name && validatedData.name !== existingCategory.name) {
-		const duplicateCategory = await prisma.category.findFirst({
-			where: {
-				userId: userId,
-				name: validatedData.name,
-				id: { not: id },
-			},
-		});
-
-		if (duplicateCategory) {
-			logger.warn("Category name already exists", {
-				userId,
-				name: validatedData.name,
-			});
-			throw new Error("ALREADY_EXISTS");
-		}
-	}
-
-	const category = await prisma.category.update({
-		where: { id },
-		data: validatedData,
-	});
-
-	logger.info("Category updated successfully", { id, name: category.name });
+	logger.info("Category created", { id: category.id });
 	return category;
 }
 
@@ -913,12 +1214,10 @@ export async function deleteCategory(
 	});
 
 	if (!category) {
-		logger.warn("Category not found or access denied", { id, userId });
 		throw new Error("NOT_FOUND");
 	}
 
 	if (category.isDefault) {
-		logger.warn("Cannot delete default category", { id, userId });
 		throw new Error("FORBIDDEN");
 	}
 
@@ -927,157 +1226,63 @@ export async function deleteCategory(
 	});
 
 	if (transactionCount > 0) {
-		logger.warn("Category has transactions, cannot delete", {
-			id,
-			transactionCount,
-		});
 		throw new Error("CONFLICT");
 	}
 
 	await prisma.category.delete({ where: { id } });
-	logger.info("Category deleted successfully", { id });
+	logger.info("Category deleted", { id });
 }
 ```
 
 **Rules:**
 
-- All Prisma calls live **only** here — never in route files.
-- Never use `any` as types.
-- Always call validation at the start of each function.
-- Throw named string errors for known failure states.
-- Import input types from `./validation`, output types from `./types`.
-- Never import `NextRequest`, `NextResponse`, or response helpers.
-
-### 5.4 Transactions
-
-```ts
-const result = await prisma.$transaction(async (tx) => {
-	await tx.oTPSession.updateMany({
-		where: { email, deletedAt: null },
-		data: { deletedAt: new Date() },
-	});
-
-	const session = await tx.oTPSession.create({
-		data: { email, otpCode, expiresAt },
-	});
-
-	return session;
-});
-```
-
-### 5.5 Import Flow
-
-```
-app/api/<feature>/route.ts
-  ├── imports validateX()         from lib/<feature>-service/validation.ts
-  ├── imports service functions   from lib/<feature>-service/index.ts
-  ├── imports format helpers      from lib/response-service
-  ├── imports Logger              from lib/logger-service
-  └── imports CookieService       from lib/cookie-service
-
-lib/<feature>-service/index.ts
-  ├── imports validateX() + input types   from ./validation
-  ├── imports output types                from ./types
-  ├── imports Logger                      from lib/logger-service
-  └── imports prisma                      from lib/prisma
-
-lib/<feature>-service/validation.ts
-  └── imports z from "zod" ONLY
-
-lib/<feature>-service/types.ts
-  └── no imports (or Prisma types only)
-```
+- All Prisma calls live **only** here — never in route files
+- Never use `any` as types
+- Always call validation at the start of each function
+- Throw named string errors for known failure states
+- Import input types from `./validation`, output types from `./types`
+- Never import `NextRequest`, `NextResponse`, or response helpers
 
 ---
 
-## 6. Logging Rules
+## 8. Logging Rules
 
-### 6.1 Logger Instance
+### 8.1 Logger Instance
 
 ```ts
-const logger = new Logger("CATEGORIES-API"); // route file (uppercase feature-API)
-const logger = new Logger("CATEGORY-SERVICE"); // lib service file (uppercase feature-SERVICE)
+const logger = new Logger("CATEGORIES-API"); // route file
+const logger = new Logger("CATEGORY-SERVICE"); // service file
 ```
 
-### 6.2 Log Levels and When to Use Them
+### 8.2 Log Levels
 
-| Level   | When                                      | Example                                              |
-| ------- | ----------------------------------------- | ---------------------------------------------------- |
-| `info`  | Request received, key steps, success      | `logger.info("GET /api/categories called")`          |
-| `warn`  | Auth failure, suspicious input, not found | `logger.warn("Category not found", { id, userId })`  |
-| `error` | Caught exceptions                         | `logger.error("POST /api/categories failed", error)` |
-| `debug` | Dev tracing, intermediate values          | `logger.debug("Generated OTP", { expiresAt })`       |
+| Level   | When                                      |
+| ------- | ----------------------------------------- |
+| `info`  | Request received, key steps, success      |
+| `warn`  | Auth failure, suspicious input, not found |
+| `error` | Caught exceptions                         |
+| `debug` | Dev tracing, intermediate values          |
 
-### 6.3 Rules
+### 8.3 Rules
 
-- Log at the **start** of every handler (`info`).
-- Log in every `catch` block before sending an error response (`error`).
-- Log every auth failure (`warn`).
-- Log when records are not found (`warn`).
-- Pass context as the **second argument** — never string-interpolate it into the message.
-- **Never log** passwords, tokens, OTP codes (in production), or sensitive fields.
+- Log at the **start** of every handler (`info`)
+- Log in every `catch` block before sending error response (`error`)
+- Pass context as **second argument** — never string-interpolate
+- **Never log** passwords, tokens, OTP codes (in production)
 
 ```ts
 // ✅ Correct
-logger.info("OTP session created", { email, otpId: session.id, expiresAt });
+logger.info("OTP session created", { email, otpId: session.id });
 
 // ❌ Wrong
 logger.info(`OTP session created: ${JSON.stringify(session)}`);
 ```
 
-### 6.4 Masking Sensitive Values
-
-```ts
-logger.debug("Generated OTP", {
-	email,
-	otpCode: process.env.NODE_ENV === "development" ? otpCode : "***HIDDEN***",
-	expiresAt,
-});
-```
-
 ---
 
-## 7. Authentication Rules
+## 9. Error Handling Contract
 
-### 7.1 Token Extraction
-
-```ts
-const accessToken = req.cookies.get("accessToken")?.value;
-const refreshToken = req.cookies.get("refreshToken")?.value;
-const user = CookieService.validateTokens(accessToken, refreshToken);
-
-if (!user) {
-	logger.warn("Unauthorized POST /api/categories");
-	const response = formatUnauthorized(startTime, "Authentication required");
-	return NextResponse.json(response, { status: HttpStatus.UNAUTHORIZED });
-}
-```
-
-### 7.2 Public Routes
-
-Routes that do not require authentication must **omit** the auth check block entirely.
-
-### 7.3 Row-Level Security Pattern
-
-Always include user ID in `where` clauses for protected resources:
-
-```ts
-// ✅ Correct — user can only access their own data
-const category = await prisma.category.findFirst({
-	where: { id, OR: [{ userId: userId }, { isDefault: true }] },
-});
-
-// ✅ Correct — create with user ID
-await prisma.category.create({
-	data: { ...validatedData, userId: userId },
-});
-```
-
----
-
-## 8. Error Handling Contract
-
-### 8.1 Named Errors from Lib
+### 9.1 Named Errors from Lib
 
 | Lib throws                   | Route maps to        | Status |
 | ---------------------------- | -------------------- | ------ |
@@ -1088,119 +1293,106 @@ await prisma.category.create({
 | `"CONFLICT"`                 | `formatConflict`     | 409    |
 | `ZodError` (from `.parse()`) | `formatBadRequest`   | 400    |
 
-### 8.2 Catch Block Pattern
+### 9.2 Catch Block Pattern
 
 ```ts
 } catch (error: any) {
     logger.error("POST /api/categories failed", error);
 
-    // 1. Zod validation errors
     if (error.name === "ZodError") {
         const response = formatBadRequest(startTime, error.errors?.[0]?.message);
         return NextResponse.json(response, { status: HttpStatus.BAD_REQUEST });
     }
 
-    // 2. Named business logic errors
     if (error.message === "NOT_FOUND") {
         const response = formatNotFound(startTime, "Category not found");
         return NextResponse.json(response, { status: HttpStatus.NOT_FOUND });
     }
 
     if (error.message === "ALREADY_EXISTS") {
-        const response = formatConflict(startTime, "Category with this name already exists");
+        const response = formatConflict(startTime, "Category already exists");
         return NextResponse.json(response, { status: HttpStatus.CONFLICT });
     }
 
-    if (error.message === "FORBIDDEN") {
-        const response = formatForbidden(startTime, "Cannot delete default categories");
-        return NextResponse.json(response, { status: HttpStatus.FORBIDDEN });
-    }
-
-    if (error.message === "CONFLICT") {
-        const response = formatConflict(startTime, "Cannot delete category with existing transactions");
-        return NextResponse.json(response, { status: HttpStatus.CONFLICT });
-    }
-
-    // 3. Fallback
     const response = formatInternalError(startTime, "Operation failed");
     return NextResponse.json(response, { status: HttpStatus.INTERNAL_SERVER_ERROR });
 }
 ```
 
-### 8.3 Never Expose Raw Errors
+### 9.3 Never Expose Raw Errors
 
 Never return `error.message` directly from unknown errors. Only map known named errors.
 
 ---
 
-## 9. Quick Reference Cheatsheet
+## 10. Quick Reference Cheatsheet
 
-### Full Request Lifecycle
+### 10.1 New API Development Checklist
 
-```
-REQUEST COMES IN
-      │
-      ▼
-export async function GET/POST/PUT/DELETE(req: NextRequest)
-  │
-  ├── const startTime = Date.now()
-  ├── logger.info("METHOD /api/<feature> called")
-  ├── CookieService.validateTokens() → if null AND protected → formatUnauthorized + return
-  ├── const { id } = await params  ← dynamic routes ONLY
-  ├── validateCategoryId(id)       ← dynamic routes ONLY
-  ├── const body = await req.json()
-  ├── validateCreateCategory(body) ← throws ZodError if invalid
-  ├── call lib/<feature>-service/index.ts function
-  │         ├── validates internally
-  │         ├── calls Prisma
-  │         └── throws named errors on failure
-  ├── logger.info("Operation successful", { id })
-  ├── const response = formatSuccess(data, startTime, { message })
-  └── return NextResponse.json(response, { status: HttpStatus.OK })
-        │
-        └── catch (error: any)
-              ├── logger.error("... failed", error)
-              ├── ZodError           → formatBadRequest   → 400
-              ├── "NOT_FOUND"        → formatNotFound     → 404
-              ├── "ALREADY_EXISTS"   → formatConflict     → 409
-              ├── "FORBIDDEN"        → formatForbidden    → 403
-              ├── "CONFLICT"         → formatConflict     → 409
-              └── fallback           → formatInternalError → 500
-```
+**Step 1: Create Service Layer**
 
-### File Quick Reference
+- [ ] `lib/<feature>-service/types.ts` - Output types
+- [ ] `lib/<feature>-service/validation.ts` - Zod schemas + input types
+- [ ] `lib/<feature>-service/index.ts` - Business logic
+
+**Step 2: Create Route Files**
+
+- [ ] `app/api/<feature>/route.ts` - Collection routes
+- [ ] `app/api/<feature>/[id]/route.ts` - Single resource routes (if needed)
+
+**Step 3: Create OpenAPI Documentation**
+
+- [ ] `app/api/<feature>/open-api.ts` - Collection routes spec
+- [ ] `app/api/<feature>/[id]/open-api.ts` - Single resource spec (if needed)
+- [ ] Register in `lib/swagger/specs/index.ts`
+
+**Step 4: Configure Proxy**
+
+- [ ] Add to `PUBLIC_ROUTES` (if public)
+- [ ] Add rate limit to `RATE_LIMITS`
+
+### 10.2 File Quick Reference
 
 ```
 lib/<feature>-service/
 ├── types.ts        → OUTPUT types + params interfaces
 ├── validation.ts   → Zod schemas + validation functions + INPUT types
 └── index.ts        → Business logic (Prisma calls, named errors)
+
+app/api/<feature>/
+├── route.ts        → Controller (no auth checks)
+├── open-api.ts     → OpenAPI spec
+└── [id]/
+    ├── route.ts    → Dynamic controller
+    └── open-api.ts → OpenAPI spec
 ```
 
-### Type Separation Rule
+### 10.3 Type Separation Rule
 
-| File            | Contains                                          | Imports From                                                 |
-| --------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| `types.ts`      | Output types, params interfaces, pagination types | Nothing (or Prisma types only)                               |
-| `validation.ts` | Zod schemas, validation functions, input types    | `"zod"` only                                                 |
-| `index.ts`      | Business logic                                    | Input types from `./validation`, output types from `./types` |
+| File            | Contains                                          | Imports From                   |
+| --------------- | ------------------------------------------------- | ------------------------------ |
+| `types.ts`      | Output types, params interfaces, pagination types | Nothing (or Prisma types only) |
+| `validation.ts` | Zod schemas, validation functions, input types    | `"zod"` only                   |
+| `index.ts`      | Business logic                                    | `./validation`, `./types`      |
 
-### Always / Never Summary
+### 10.4 Always / Never Summary
 
-| ✅ Always                                                   | ❌ Never                                                  |
-| ----------------------------------------------------------- | --------------------------------------------------------- |
-| Use named exports: `export async function GET/POST/...`     | Use `export default function handler`                     |
-| Record `const startTime = Date.now()` at handler top        | Forget `startTime` — all format helpers need it           |
-| `await params` in every dynamic route handler               | Access `params.id` without awaiting                       |
-| Wrap every handler in `try-catch`                           | Leave a handler without a `try-catch`                     |
-| Call `NextResponse.json(formatX(...), { status })` in route | Call format helpers expecting them to return NextResponse |
-| Use `HttpStatus` constants for status codes                 | Hard-code status numbers like `200`, `400`                |
-| Use Zod for all validation                                  | Write manual validation logic                             |
-| Export input types from `validation.ts`                     | Export input types from `types.ts`                        |
-| Export output types from `types.ts`                         | Import input types in `types.ts`                          |
-| Throw named string errors from `index.ts`                   | Import `NextRequest` or `NextResponse` in lib files       |
-| Log at the start of every handler                           | Log passwords, tokens, OTP codes, or secrets              |
-| Pass context as second arg to logger                        | String-interpolate context into log messages              |
-| Check `error.name === "ZodError"` in catch                  | Return `error.message` directly from unknown errors       |
-| Use `prisma.$transaction` for multi-step writes             | Perform multi-step writes outside a transaction           |
-| Include user ID in all Prisma `where` clauses for security  | Forget row-level security checks                          |
+| ✅ Always                                               | ❌ Never                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------- |
+| Use named exports: `export async function GET/POST/...` | Use `export default function handler`                     |
+| Record `const startTime = Date.now()` at handler top    | Forget `startTime` — all format helpers need it           |
+| `await params` in every dynamic route handler           | Access `params.id` without awaiting                       |
+| Wrap every handler in `try-catch`                       | Leave a handler without `try-catch`                       |
+| Create `open-api.ts` for every route                    | Skip OpenAPI documentation                                |
+| Configure proxy for every new API                       | Forget to add rate limits                                 |
+| Get userId from `x-user-id` header                      | Add auth checks in route files                            |
+| Call `NextResponse.json(formatX(...), { status })`      | Call format helpers expecting them to return NextResponse |
+| Use `HttpStatus` constants for status codes             | Hard-code status numbers like `200`, `400`                |
+| Use Zod for all validation                              | Write manual validation logic                             |
+| Export input types from `validation.ts`                 | Export input types from `types.ts`                        |
+| Throw named string errors from `index.ts`               | Import `NextRequest` or `NextResponse` in lib files       |
+| Log at the start of every handler                       | Log passwords, tokens, or secrets                         |
+| Check `error.name === "ZodError"` in catch              | Return `error.message` directly from unknown errors       |
+| Include user ID in all Prisma `where` clauses           | Forget row-level security checks                          |
+
+---
