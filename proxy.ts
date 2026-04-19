@@ -50,11 +50,11 @@ const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
 	"/api/accounts/*/history": { windowMs: 60_000, maxRequests: 30 },
 	"/api/accounts/*/add-balance": { windowMs: 60_000, maxRequests: 10 },
 
-	// Transaction routes
+	// Transaction API rate limits
 	"/api/transactions": { windowMs: 60_000, maxRequests: 60 },
-	"/api/transactions/*": { windowMs: 60_000, maxRequests: 30 },
 	"/api/transactions/summary": { windowMs: 60_000, maxRequests: 30 },
-	"/api/transactions/recent": { windowMs: 60_000, maxRequests: 30 },
+	"/api/transactions/bulk": { windowMs: 60_000, maxRequests: 10 },
+	"/api/transactions/export": { windowMs: 60_000, maxRequests: 10 },
 
 	// OpenAPI documentation
 	"/api/open-api": { windowMs: 60_000, maxRequests: 100 },

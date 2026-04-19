@@ -65,8 +65,42 @@ import {
 	accountAddBalanceSchemas,
 	accountAddBalanceTags,
 } from "@/app/api/accounts/[id]/add-balance/open-api";
-import { userPaths, userSchemas, userTags } from "@/app/api/user/[userId]/open-api";
+import {
+	userPaths,
+	userSchemas,
+	userTags,
+} from "@/app/api/user/[userId]/open-api";
 
+// Import transaction specs
+import {
+	transactionPaths,
+	transactionSchemas,
+	transactionTags,
+} from "@/app/api/transactions/open-api";
+
+import {
+	transactionByIdPaths,
+	transactionByIdSchemas,
+	transactionByIdTags,
+} from "@/app/api/transactions/[id]/open-api";
+
+import {
+	transactionSummaryPaths,
+	transactionSummarySchemas,
+	transactionSummaryTags,
+} from "@/app/api/transactions/summary/open-api";
+
+import {
+	transactionBulkPaths,
+	transactionBulkSchemas,
+	transactionBulkTags,
+} from "@/app/api/transactions/bulk/open-api";
+
+import {
+	transactionExportPaths,
+	transactionExportSchemas,
+	transactionExportTags,
+} from "@/app/api/transactions/export/open-api";
 
 export const allPaths: OpenAPIV3.PathsObject = {
 	...requestOtpPaths,
@@ -82,7 +116,12 @@ export const allPaths: OpenAPIV3.PathsObject = {
 	...accountByIdPaths,
 	...accountHistoryPaths,
 	...accountAddBalancePaths,
-	...userPaths
+	...userPaths,
+	...transactionPaths,
+	...transactionByIdPaths,
+	...transactionSummaryPaths,
+	...transactionBulkPaths,
+	...transactionExportPaths,
 };
 
 export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
@@ -100,7 +139,13 @@ export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
 	...accountByIdSchemas,
 	...accountHistorySchemas,
 	...accountAddBalanceSchemas,
-	...userSchemas
+	...userSchemas,
+	...errorSchemas,
+	...transactionSchemas,
+	...transactionByIdSchemas,
+	...transactionSummarySchemas,
+	...transactionBulkSchemas,
+	...transactionExportSchemas,
 };
 
 export const allTags: OpenAPIV3.TagObject[] = [
@@ -117,5 +162,10 @@ export const allTags: OpenAPIV3.TagObject[] = [
 	...accountByIdTags,
 	...accountHistoryTags,
 	...accountAddBalanceTags,
-	...userTags
+	...userTags,
+	...transactionTags,
+	...transactionByIdTags,
+	...transactionSummaryTags,
+	...transactionBulkTags,
+	...transactionExportTags,
 ];
