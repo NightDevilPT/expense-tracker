@@ -1,5 +1,3 @@
-// lib/budget-service/index.ts
-
 import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import { getCategoryById } from "@/lib/category-service";
@@ -20,6 +18,7 @@ import type {
 	GetBudgetsParams,
 	PaginatedResult,
 } from "./types";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 const logger = new Logger("BUDGET-SERVICE");
 
@@ -250,6 +249,26 @@ export async function createBudget(
 	});
 
 	logger.info("Budget created successfully", { id: budget.id });
+
+	// Audit log for budget creation
+	await logCreate(
+		userId,
+		"Budget",
+		budget.id,
+		{
+			amount: budget.amount,
+			period: budget.period,
+			startDate: budget.startDate,
+			endDate: budget.endDate,
+			alertThreshold: budget.alertThreshold,
+			rollover: budget.rollover,
+			categoryId: budget.categoryId,
+		},
+		{
+			description: `Budget created for ${budget.period} with amount ${budget.amount}`,
+		},
+	);
+
 	return budget as Budget;
 }
 
@@ -299,6 +318,45 @@ export async function updateBudget(
 	});
 
 	logger.info("Budget updated successfully", { id });
+
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in existingBudget) {
+			const oldValue = (existingBudget as any)[key];
+			const newValue = (budget as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for budget update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(
+			userId,
+			"Budget",
+			id,
+			oldDataForAudit,
+			newDataForAudit,
+			{
+				description: `Budget updated`,
+				excludeFields: [
+					"id",
+					"createdAt",
+					"updatedAt",
+					"userId",
+					"spent",
+					"remaining",
+				],
+			},
+		);
+	}
+
 	return budget as Budget;
 }
 
@@ -317,9 +375,25 @@ export async function deleteBudget(id: string, userId: string): Promise<void> {
 		throw new Error("NOT_FOUND");
 	}
 
+	// Prepare budget data for audit
+	const budgetDataForAudit = {
+		amount: budget.amount,
+		period: budget.period,
+		startDate: budget.startDate,
+		endDate: budget.endDate,
+		alertThreshold: budget.alertThreshold,
+		rollover: budget.rollover,
+		categoryId: budget.categoryId,
+	};
+
 	await prisma.budget.delete({ where: { id } });
 
 	logger.info("Budget deleted successfully", { id });
+
+	// Audit log for budget deletion
+	await logDelete(userId, "Budget", id, budgetDataForAudit, {
+		description: `Budget for ${budget.period} with amount ${budget.amount} deleted`,
+	});
 }
 
 // Get current month budgets (now handles all periods)
@@ -408,6 +482,24 @@ export async function getBudgetAlerts(userId: string): Promise<BudgetAlert[]> {
 				threshold: budget.alertThreshold,
 				severity,
 			});
+
+			// Audit log for budget alert (only when alert is triggered)
+			await logCreate(
+				userId,
+				"Budget",
+				budget.id,
+				{
+					categoryName: budget.category?.name || "All Categories",
+					amount: budget.amount,
+					spent: budget.spent,
+					percentage,
+					threshold: budget.alertThreshold,
+					severity,
+				},
+				{
+					description: `Budget alert: ${severity} - ${percentage.toFixed(1)}% of ${budget.period} budget used`,
+				},
+			);
 		}
 	}
 

@@ -1,5 +1,3 @@
-// lib/transaction-service/index.ts
-
 import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import { getAccountById } from "@/lib/account-service";
@@ -33,6 +31,7 @@ import type {
 	BulkCreateResult,
 	BulkDeleteResult,
 } from "./types";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 const logger = new Logger("TRANSACTION-SERVICE");
 
@@ -276,7 +275,7 @@ export async function createTransaction(
 		const totalDeduction =
 			validatedData.amount + (validatedData.transferFee || 0);
 
-		return await prisma.$transaction(async (tx) => {
+		const result = await prisma.$transaction(async (tx) => {
 			// Create source transaction (money leaving)
 			const sourceTransaction = await tx.transaction.create({
 				data: {
@@ -301,7 +300,7 @@ export async function createTransaction(
 
 			// Update source account balance
 			await updateAccountBalance(
-				validatedData.accountId as string, // This is guaranteed to be string here
+				validatedData.accountId as string,
 				userId,
 				-totalDeduction,
 				"TRANSFER",
@@ -367,12 +366,49 @@ export async function createTransaction(
 				},
 			});
 
-			return completeTransaction as Transaction;
+			return { completeTransaction, sourceTransaction, destTransaction };
 		});
+
+		// Audit log for transfer (source)
+		await logCreate(
+			userId,
+			"Transaction",
+			result.sourceTransaction.id,
+			{
+				amount: result.sourceTransaction.amount,
+				type: "TRANSFER_OUT",
+				description: result.sourceTransaction.description,
+				fromAccountId: validatedData.accountId,
+				toAccountId: toAccountId,
+				fee: validatedData.transferFee,
+			},
+			{
+				description: `Transfer of ${validatedData.amount} from account to ${toAccountId}`,
+			},
+		);
+
+		// Audit log for transfer (destination)
+		await logCreate(
+			userId,
+			"Transaction",
+			result.destTransaction.id,
+			{
+				amount: result.destTransaction.amount,
+				type: "TRANSFER_IN",
+				description: result.destTransaction.description,
+				fromAccountId: validatedData.accountId,
+				toAccountId: toAccountId,
+			},
+			{
+				description: `Transfer of ${validatedData.amount} received from account ${validatedData.accountId}`,
+			},
+		);
+
+		return result.completeTransaction as Transaction;
 	} else {
 		// Regular transaction (income/expense)
-		return await prisma.$transaction(async (tx) => {
-			const transaction = await tx.transaction.create({
+		const transaction = await prisma.$transaction(async (tx) => {
+			const newTransaction = await tx.transaction.create({
 				data: {
 					amount: validatedData.amount,
 					type: validatedData.type,
@@ -406,8 +442,8 @@ export async function createTransaction(
 					changeAmount,
 					validatedData.type === "INCOME" ? "DEPOSIT" : "WITHDRAWAL",
 					validatedData.description ||
-						`Transaction: ${transaction.id}`,
-					transaction.id,
+						`Transaction: ${newTransaction.id}`,
+					newTransaction.id,
 				);
 			}
 
@@ -415,19 +451,19 @@ export async function createTransaction(
 			if (validatedData.tagIds && validatedData.tagIds.length > 0) {
 				await tx.transactionTag.createMany({
 					data: validatedData.tagIds.map((tagId) => ({
-						transactionId: transaction.id,
+						transactionId: newTransaction.id,
 						tagId,
 					})),
 				});
 			}
 
 			logger.info("Transaction created successfully", {
-				id: transaction.id,
+				id: newTransaction.id,
 			});
 
 			// Fetch the complete transaction with relations
 			const completeTransaction = await tx.transaction.findUnique({
-				where: { id: transaction.id },
+				where: { id: newTransaction.id },
 				include: {
 					category: true,
 					account: true,
@@ -436,8 +472,29 @@ export async function createTransaction(
 				},
 			});
 
-			return completeTransaction as Transaction;
+			return completeTransaction;
 		});
+
+		// Audit log for transaction creation
+		await logCreate(
+			userId,
+			"Transaction",
+			transaction!.id,
+			{
+				amount: transaction!.amount,
+				type: transaction!.type,
+				description: transaction!.description,
+				date: transaction!.date,
+				categoryId: transaction!.categoryId,
+				accountId: transaction!.accountId,
+				tagIds: validatedData.tagIds,
+			},
+			{
+				description: `${transaction!.type === "INCOME" ? "Income" : "Expense"} of ${transaction!.amount} created: ${transaction!.description}`,
+			},
+		);
+
+		return transaction as Transaction;
 	}
 }
 
@@ -462,7 +519,7 @@ export async function updateTransaction(
 		await verifyTagsAccess(validatedData.tagIds, userId);
 	}
 
-	return await prisma.$transaction(async (tx) => {
+	const result = await prisma.$transaction(async (tx) => {
 		const existingTransaction = await tx.transaction.findFirst({
 			where: { id, userId },
 			include: { account: true },
@@ -550,8 +607,41 @@ export async function updateTransaction(
 		}
 
 		logger.info("Transaction updated successfully", { id });
-		return updatedTransaction as Transaction;
+		return { updatedTransaction, existingTransaction };
 	});
+
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in result.existingTransaction) {
+			const oldValue = (result.existingTransaction as any)[key];
+			const newValue = (result.updatedTransaction as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for transaction update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(
+			userId,
+			"Transaction",
+			id,
+			oldDataForAudit,
+			newDataForAudit,
+			{
+				description: `Transaction ${id} updated`,
+				excludeFields: ["id", "createdAt", "updatedAt", "userId"],
+			},
+		);
+	}
+
+	return result.updatedTransaction as Transaction;
 }
 
 // Delete transaction
@@ -563,15 +653,23 @@ export async function deleteTransaction(
 
 	validateTransactionId(id);
 
+	let transactionForAudit: any = null;
+
 	await prisma.$transaction(async (tx) => {
 		const transaction = await tx.transaction.findFirst({
 			where: { id, userId },
-			include: { account: true },
+			include: {
+				account: true,
+				category: true,
+				tags: { include: { tag: true } },
+			},
 		});
 
 		if (!transaction) {
 			throw new Error("NOT_FOUND");
 		}
+
+		transactionForAudit = transaction;
 
 		// Revert account balance if transaction was linked to an account
 		if (transaction.accountId) {
@@ -595,6 +693,27 @@ export async function deleteTransaction(
 
 		logger.info("Transaction deleted successfully", { id });
 	});
+
+	// Audit log for transaction deletion
+	if (transactionForAudit) {
+		await logDelete(
+			userId,
+			"Transaction",
+			id,
+			{
+				amount: transactionForAudit.amount,
+				type: transactionForAudit.type,
+				description: transactionForAudit.description,
+				date: transactionForAudit.date,
+				categoryName: transactionForAudit.category?.name,
+				accountName: transactionForAudit.account?.name,
+				tags: transactionForAudit.tags.map((tt: any) => tt.tag.name),
+			},
+			{
+				description: `${transactionForAudit.type === "INCOME" ? "Income" : "Expense"} of ${transactionForAudit.amount} deleted: ${transactionForAudit.description}`,
+			},
+		);
+	}
 }
 
 // Get transaction summary
@@ -816,6 +935,23 @@ export async function exportTransactions(
 		},
 		orderBy: { date: "desc" },
 	});
+
+	// Audit log for export
+	await logCreate(
+		userId,
+		"Export",
+		"export-" + Date.now().toString(),
+		{
+			format: validatedOptions.format,
+			startDate: validatedOptions.startDate,
+			endDate: validatedOptions.endDate,
+			includeAttachments: validatedOptions.includeAttachments,
+			transactionCount: transactions.length,
+		},
+		{
+			description: `Exported ${transactions.length} transactions as ${validatedOptions.format.toUpperCase()}`,
+		},
+	);
 
 	if (validatedOptions.format === "json") {
 		return transactions;

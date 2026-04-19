@@ -1,5 +1,3 @@
-// lib/category-service/index.ts
-
 import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import {
@@ -10,6 +8,7 @@ import {
 	type UpdateCategoryInput,
 } from "./validation";
 import type { Category, GetCategoriesParams, PaginatedResult } from "./types";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 const logger = new Logger("CATEGORY-SERVICE");
 
@@ -137,6 +136,25 @@ export async function createCategory(
 		id: category.id,
 		name: category.name,
 	});
+
+	// Audit log for category creation
+	await logCreate(
+		userId,
+		"Category",
+		category.id,
+		{
+			name: category.name,
+			type: category.type,
+			icon: category.icon,
+			color: category.color,
+			order: category.order,
+			isDefault: category.isDefault,
+		},
+		{
+			description: `Category "${category.name}" created`,
+		},
+	);
+
 	return category;
 }
 
@@ -188,6 +206,38 @@ export async function updateCategory(
 	});
 
 	logger.info("Category updated successfully", { id, name: category.name });
+
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in existingCategory) {
+			const oldValue = (existingCategory as any)[key];
+			const newValue = (category as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for category update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(
+			userId,
+			"Category",
+			id,
+			oldDataForAudit,
+			newDataForAudit,
+			{
+				description: `Category "${category.name}" updated`,
+				excludeFields: ["id", "createdAt", "updatedAt", "userId"],
+			},
+		);
+	}
+
 	return category;
 }
 
@@ -231,9 +281,24 @@ export async function deleteCategory(
 		throw new Error("CONFLICT");
 	}
 
+	// Prepare category data for audit
+	const categoryDataForAudit = {
+		name: category.name,
+		type: category.type,
+		icon: category.icon,
+		color: category.color,
+		order: category.order,
+		isDefault: category.isDefault,
+	};
+
 	await prisma.category.delete({
 		where: { id },
 	});
 
 	logger.info("Category deleted successfully", { id });
+
+	// Audit log for category deletion
+	await logDelete(userId, "Category", id, categoryDataForAudit, {
+		description: `Category "${category.name}" deleted`,
+	});
 }

@@ -1,5 +1,3 @@
-// prisma/seed.ts
-
 import {
 	PrismaClient,
 	TransactionType,
@@ -7,6 +5,7 @@ import {
 	BudgetPeriod,
 	SavingsGoalStatus,
 	RecurringFrequency,
+	AuditAction,
 	type User,
 	type Category,
 	type Tag,
@@ -182,6 +181,40 @@ function calculateNextDueDate(
 	return nextDate;
 }
 
+// ==================== AUDIT LOG HELPER ====================
+
+async function createAuditLog(
+	userId: string,
+	action: AuditAction,
+	entityType: string,
+	entityId: string, // Changed from string | null to string
+	oldValue: any | null,
+	newValue: any | null,
+	description: string,
+) {
+	try {
+		await prisma.auditLog.create({
+			data: {
+				action,
+				entityType,
+				entityId, // Now always a string
+				oldValue: oldValue
+					? JSON.parse(JSON.stringify(oldValue))
+					: null,
+				newValue: newValue
+					? JSON.parse(JSON.stringify(newValue))
+					: null,
+				description,
+				ipAddress: "127.0.0.1",
+				userAgent: "seed-script",
+				userId,
+			},
+		});
+	} catch (error) {
+		console.warn(`Failed to create audit log: ${description}`, error);
+	}
+}
+
 // ==================== MAIN SEED FUNCTION ====================
 
 async function main() {
@@ -236,6 +269,17 @@ async function main() {
 		});
 		users.push(user);
 		console.log(`   ✅ Created: ${user.name} (${user.email})`);
+
+		// Audit log for user creation
+		await createAuditLog(
+			user.id,
+			AuditAction.CREATE,
+			"User",
+			user.id,
+			null,
+			{ email: user.email, name: user.name, currency: user.currency },
+			`User account created for ${user.name}`,
+		);
 	}
 
 	// ==================== CREATE CATEGORIES ====================
@@ -261,6 +305,21 @@ async function main() {
 				},
 			});
 			userCategories.push(category);
+
+			// Audit log for category creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"Category",
+				category.id,
+				null,
+				{
+					name: category.name,
+					type: category.type,
+					icon: category.icon,
+				},
+				`Category "${category.name}" created`,
+			);
 		}
 
 		// Create income categories
@@ -278,6 +337,21 @@ async function main() {
 				},
 			});
 			userCategories.push(category);
+
+			// Audit log for category creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"Category",
+				category.id,
+				null,
+				{
+					name: category.name,
+					type: category.type,
+					icon: category.icon,
+				},
+				`Category "${category.name}" created`,
+			);
 		}
 
 		allCategories.set(user.id, userCategories);
@@ -306,6 +380,17 @@ async function main() {
 				},
 			});
 			userTags.push(tag);
+
+			// Audit log for tag creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"Tag",
+				tag.id,
+				null,
+				{ name: tag.name, color: tag.color },
+				`Tag "${tag.name}" created`,
+			);
 		}
 		allTags.set(user.id, userTags);
 		console.log(`   ✅ ${user.name}: ${userTags.length} tags created`);
@@ -358,6 +443,22 @@ async function main() {
 			});
 
 			userAccounts.push(account);
+
+			// Audit log for account creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"Account",
+				account.id,
+				null,
+				{
+					name: account.name,
+					type: account.type,
+					balance: account.balance,
+					currency: account.currency,
+				},
+				`Account "${account.name}" created with balance ${account.balance}`,
+			);
 		}
 		allAccounts.set(user.id, userAccounts);
 		console.log(
@@ -384,7 +485,7 @@ async function main() {
 		);
 
 		for (let i = 0; i < CONFIG.RECURRING_TRANSACTIONS_PER_USER; i++) {
-			const isIncome = i === 0; // First one is income (salary), rest expenses
+			const isIncome = i === 0;
 			const type = isIncome
 				? TransactionType.INCOME
 				: TransactionType.EXPENSE;
@@ -446,6 +547,25 @@ async function main() {
 
 			userRecurring.push(recurringTransaction);
 			totalRecurringTransactions++;
+
+			// Audit log for recurring transaction creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"RecurringTransaction",
+				recurringTransaction.id,
+				null,
+				{
+					name,
+					amount,
+					type,
+					frequency,
+					interval,
+					startDate,
+					nextDueDate,
+				},
+				`Recurring ${type.toLowerCase()} "${name}" created with amount ${amount}`,
+			);
 		}
 
 		allRecurringTransactions.set(user.id, userRecurring);
@@ -521,7 +641,6 @@ async function main() {
 				data: { balance: { increment: balanceChange } },
 			});
 
-			// Randomly link to recurring transaction (10% chance)
 			const linkedRecurringId =
 				Math.random() < 0.1 && userRecurring.length > 0
 					? getRandomElement(userRecurring).id
@@ -576,6 +695,25 @@ async function main() {
 			}
 
 			totalTransactions++;
+
+			// Audit log for transaction creation (sample every 10th transaction to avoid too many logs)
+			if (i % 10 === 0) {
+				await createAuditLog(
+					user.id,
+					AuditAction.CREATE,
+					"Transaction",
+					transaction.id,
+					null,
+					{
+						amount,
+						type,
+						description,
+						date,
+						categoryId: category.id,
+					},
+					`${type === TransactionType.INCOME ? "Income" : "Expense"} of ${amount} created: ${description}`,
+				);
+			}
 		}
 		console.log(
 			`   ✅ ${user.name}: ${CONFIG.TRANSACTIONS_PER_USER} transactions created`,
@@ -633,6 +771,39 @@ async function main() {
 			});
 
 			totalBudgets++;
+
+			// Audit log for budget creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"Budget",
+				budget.id,
+				null,
+				{
+					amount,
+					period,
+					categoryId: category.id,
+					alertThreshold: budget.alertThreshold,
+				},
+				`Budget created for ${category.name} with amount ${amount} (${period})`,
+			);
+
+			// Check if budget alert threshold is reached
+			const percentage = (budget.spent / budget.amount) * 100;
+			if (percentage >= budget.alertThreshold) {
+				await createAuditLog(
+					user.id,
+					AuditAction.BUDGET_ALERT,
+					"Budget",
+					budget.id,
+					{ amount: budget.amount, spent: budget.spent, percentage },
+					{
+						threshold: budget.alertThreshold,
+						severity: percentage >= 100 ? "CRITICAL" : "WARNING",
+					},
+					`Budget alert: ${percentage.toFixed(1)}% of ${period} budget used for ${category.name}`,
+				);
+			}
 		}
 		console.log(
 			`   ✅ ${user.name}: ${CONFIG.BUDGETS_PER_USER} budgets created`,
@@ -688,12 +859,81 @@ async function main() {
 			});
 
 			totalSavingsGoals++;
+
+			// Audit log for savings goal creation
+			await createAuditLog(
+				user.id,
+				AuditAction.CREATE,
+				"SavingsGoal",
+				savingsGoal.id,
+				null,
+				{
+					name: goalName,
+					targetAmount,
+					currentAmount,
+					deadline,
+					status,
+					progress,
+				},
+				`Savings goal "${goalName}" created with target ${targetAmount}`,
+			);
+
+			// Check for milestone achievements
+			const milestones = [25, 50, 75, 100];
+			for (const milestone of milestones) {
+				if (progress >= milestone) {
+					await createAuditLog(
+						user.id,
+						AuditAction.GOAL_MILESTONE,
+						"SavingsGoal",
+						savingsGoal.id,
+						{ progress: progress - milestone, targetAmount },
+						{
+							milestone: `${milestone}%`,
+							currentAmount,
+							targetAmount,
+						},
+						`Savings goal "${goalName}" reached ${milestone}% milestone!`,
+					);
+					break;
+				}
+			}
 		}
 		console.log(
 			`   ✅ ${user.name}: ${CONFIG.SAVINGS_GOALS_PER_USER} savings goals created`,
 		);
 	}
 	console.log(`   📊 Total savings goals: ${totalSavingsGoals}`);
+
+	// ==================== ADD LOGIN/LOGOUT AUDIT LOGS ====================
+	console.log("\n🔐 Adding login/logout audit logs...");
+
+	for (const user of users) {
+		// Login audit logs
+		await createAuditLog(
+			user.id,
+			AuditAction.LOGIN,
+			"User",
+			user.id,
+			null,
+			{ loginMethod: "OTP", timestamp: new Date().toISOString() },
+			`User ${user.email} logged in`,
+		);
+
+		// Settings change audit logs
+		await createAuditLog(
+			user.id,
+			AuditAction.SETTINGS_CHANGE,
+			"Settings",
+			user.id,
+			{ theme: "light", currency: "USD" },
+			{ theme: user.theme, currency: user.currency },
+			`User settings updated: theme=${user.theme}, currency=${user.currency}`,
+		);
+	}
+	console.log(
+		`   ✅ Added login/logout audit logs for ${users.length} users`,
+	);
 
 	// ==================== FINAL SUMMARY ====================
 	console.log("\n" + "=".repeat(60));
@@ -710,6 +950,7 @@ async function main() {
 	console.log(`📊 Budgets: ${await prisma.budget.count()}`);
 	console.log(`🎯 Savings Goals: ${await prisma.savingsGoal.count()}`);
 	console.log(`🔗 Transaction Tags: ${await prisma.transactionTag.count()}`);
+	console.log(`📝 Audit Logs: ${await prisma.auditLog.count()}`);
 	console.log("=".repeat(60));
 
 	console.log("\n🔑 Test Users (use these IDs for API testing):");
@@ -719,6 +960,17 @@ async function main() {
 		console.log(`   🆔 ${user.id}`);
 		console.log("");
 	}
+
+	console.log("\n📝 Audit Logs API Test URLs:");
+	console.log("-".repeat(60));
+	console.log(`   GET /api/audit-logs - Get all audit logs`);
+	console.log(`   GET /api/audit-logs/:id - Get specific audit log`);
+	console.log(`   GET /api/audit-logs?export=json - Export as JSON`);
+	console.log(`   GET /api/audit-logs?export=csv - Export as CSV`);
+	console.log(`   GET /api/audit-logs?action=CREATE - Filter by action`);
+	console.log(
+		`   GET /api/audit-logs?entityType=Transaction - Filter by entity`,
+	);
 
 	console.log("\n✅ Seeding completed successfully!");
 }

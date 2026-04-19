@@ -1,5 +1,3 @@
-// lib/savings-goal-service/index.ts
-
 import type {
 	SavingsGoal,
 	SavingsGoalWithProgress,
@@ -21,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import { getCategoryById } from "@/lib/category-service";
 import { SavingsGoalStatus } from "@/generated/prisma/enums";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 const logger = new Logger("SAVINGS-GOAL-SERVICE");
 
@@ -123,7 +122,7 @@ async function updateGoalMetrics(goalId: string): Promise<void> {
 		data: {
 			progress: metrics.progress,
 			daysRemaining: metrics.daysRemaining,
-			status: metrics.status, // Now properly typed as SavingsGoalStatus
+			status: metrics.status,
 		},
 	});
 }
@@ -278,6 +277,24 @@ export async function createSavingsGoal(
 		id: goal.id,
 		name: goal.name,
 	});
+
+	// Audit log for savings goal creation
+	await logCreate(
+		userId,
+		"SavingsGoal",
+		goal.id,
+		{
+			name: goal.name,
+			targetAmount: goal.targetAmount,
+			deadline: goal.deadline,
+			notes: goal.notes,
+			linkedCategoryId: goal.linkedCategoryId,
+		},
+		{
+			description: `Savings goal "${goal.name}" created with target ${goal.targetAmount}`,
+		},
+	);
+
 	return goal as SavingsGoal;
 }
 
@@ -324,6 +341,45 @@ export async function updateSavingsGoal(
 	await updateGoalMetrics(id);
 
 	logger.info("Savings goal updated successfully", { id });
+
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in existingGoal) {
+			const oldValue = (existingGoal as any)[key];
+			const newValue = (goal as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for savings goal update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(
+			userId,
+			"SavingsGoal",
+			id,
+			oldDataForAudit,
+			newDataForAudit,
+			{
+				description: `Savings goal "${goal.name}" updated`,
+				excludeFields: [
+					"id",
+					"createdAt",
+					"updatedAt",
+					"userId",
+					"progress",
+					"daysRemaining",
+				],
+			},
+		);
+	}
+
 	return goal as SavingsGoal;
 }
 
@@ -345,9 +401,24 @@ export async function deleteSavingsGoal(
 		throw new Error("NOT_FOUND");
 	}
 
+	// Prepare goal data for audit
+	const goalDataForAudit = {
+		name: goal.name,
+		targetAmount: goal.targetAmount,
+		currentAmount: goal.currentAmount,
+		deadline: goal.deadline,
+		status: goal.status,
+		notes: goal.notes,
+	};
+
 	await prisma.savingsGoal.delete({ where: { id } });
 
 	logger.info("Savings goal deleted successfully", { id });
+
+	// Audit log for savings goal deletion
+	await logDelete(userId, "SavingsGoal", id, goalDataForAudit, {
+		description: `Savings goal "${goal.name}" deleted`,
+	});
 }
 
 // Contribute to savings goal
@@ -400,7 +471,7 @@ export async function contributeToGoal(
 		where: { id },
 		data: {
 			currentAmount: newAmount,
-			status: newStatus, // Properly typed as SavingsGoalStatus
+			status: newStatus,
 		},
 		include: { linkedCategory: true },
 	});
@@ -417,6 +488,49 @@ export async function contributeToGoal(
 		progress: progressValue,
 		isCompleted,
 	});
+
+	// Audit log for contribution (milestone check)
+	if (isCompleted) {
+		await logCreate(
+			userId,
+			"SavingsGoal",
+			id,
+			{
+				goalName: goal.name,
+				targetAmount: goal.targetAmount,
+				finalAmount: newAmount,
+				contributionAmount: validatedData.amount,
+			},
+			{
+				description: `Savings goal "${goal.name}" completed! Target ${goal.targetAmount} reached.`,
+			},
+		);
+	} else {
+		// Optional: Log milestone achievements (e.g., 25%, 50%, 75%)
+		const oldProgress = (previousAmount / goal.targetAmount) * 100;
+		const newProgress = (newAmount / goal.targetAmount) * 100;
+		const milestones = [25, 50, 75];
+
+		for (const milestone of milestones) {
+			if (oldProgress < milestone && newProgress >= milestone) {
+				await logCreate(
+					userId,
+					"SavingsGoal",
+					id,
+					{
+						goalName: goal.name,
+						milestone: `${milestone}%`,
+						currentAmount: newAmount,
+						targetAmount: goal.targetAmount,
+					},
+					{
+						description: `Savings goal "${goal.name}" reached ${milestone}% milestone!`,
+					},
+				);
+				break;
+			}
+		}
+	}
 
 	return {
 		goal: updatedGoal as SavingsGoal,

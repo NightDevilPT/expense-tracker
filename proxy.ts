@@ -75,6 +75,10 @@ const RATE_LIMITS: Record<string, { windowMs: number; maxRequests: number }> = {
 	"/api/recurring/*/pause": { windowMs: 60_000, maxRequests: 10 },
 	"/api/recurring/*/resume": { windowMs: 60_000, maxRequests: 10 },
 
+	// ==================== AUDIT LOGS ROUTES ====================
+	"/api/audit-logs": { windowMs: 60_000, maxRequests: 60 },
+	"/api/audit-logs/:id": { windowMs: 60_000, maxRequests: 60 },
+
 	// ==================== OPENAPI DOCUMENTATION ====================
 	"/api/open-api": { windowMs: 60_000, maxRequests: 100 },
 

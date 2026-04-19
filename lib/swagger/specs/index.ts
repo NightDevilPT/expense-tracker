@@ -179,6 +179,17 @@ import {
 	recurringResumeTags,
 } from "@/app/api/recurring/[id]/resume/open-api";
 
+import {
+  auditLogsPaths,
+  auditLogsSchemas,
+  auditLogsTags,
+} from "@/app/api/audit-logs/open-api";
+import {
+  auditLogByIdPaths,
+  auditLogByIdSchemas,
+  auditLogByIdTags,
+} from "@/app/api/audit-logs/[id]/open-api";
+
 export const allPaths: OpenAPIV3.PathsObject = {
 	...requestOtpPaths,
 	...loginOtpPaths,
@@ -212,6 +223,8 @@ export const allPaths: OpenAPIV3.PathsObject = {
 	...recurringByIdPaths,
 	...recurringPausePaths,
 	...recurringResumePaths,
+	...auditLogsPaths,
+  ...auditLogByIdPaths,
 };
 
 export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
@@ -249,6 +262,8 @@ export const allSchemas: Record<string, OpenAPIV3.SchemaObject> = {
 	...recurringByIdSchemas,
 	...recurringPauseSchemas,
 	...recurringResumeSchemas,
+	...auditLogsSchemas,
+  ...auditLogByIdSchemas,
 };
 
 export const allTags: OpenAPIV3.TagObject[] = [
@@ -284,4 +299,6 @@ export const allTags: OpenAPIV3.TagObject[] = [
 	...recurringByIdTags,
 	...recurringPauseTags,
 	...recurringResumeTags,
+	 ...auditLogsTags,
+  ...auditLogByIdTags,
 ];

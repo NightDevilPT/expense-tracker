@@ -228,8 +228,8 @@ Here's the complete API documentation for ALL 71 endpoints with tables involved:
 | -------- | --------------------------------- | ------ | ------------------------- | ------------ | ------------- | ---------- |
 | 61       | `/api/notifications`              | GET    | Get user notifications    | Notification | Yes           | ⏳ PENDING |
 | 62       | `/api/notifications/unread-count` | GET    | Get unread count          | Notification | Yes           | ⏳ PENDING |
-| 63       | `/api/notifications/:id`          | PUT    | Mark notification as read | Notification | Yes           | ⏳ PENDING |
-| 64       | `/api/notifications/read-all`     | PUT    | Mark all as read          | Notification | Yes           | ⏳ PENDING |
+| 63       | `/api/notifications/:id/mark-read`| PUT    | Mark notification as read | Notification | Yes           | ⏳ PENDING |
+| 64       | `/api/notifications/mark-read-all`| PUT    | Mark all as read          | Notification | Yes           | ⏳ PENDING |
 | 65       | `/api/notifications/:id`          | DELETE | Delete notification       | Notification | Yes           | ⏳ PENDING |
 
 ### 12. Audit Logs - Tables Used: `AuditLog`, `User`

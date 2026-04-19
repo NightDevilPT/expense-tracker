@@ -1,5 +1,3 @@
-// lib/tag-service/index.ts
-
 import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import {
@@ -14,6 +12,7 @@ import {
 	type GetPopularTagsParams,
 } from "./validation";
 import type { Tag, PaginatedResult, PopularTag, TagWithCount } from "./types";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 const logger = new Logger("TAG-SERVICE");
 
@@ -151,6 +150,20 @@ export async function createTag(
 
 	logger.info("Tag created successfully", { id: tag.id, name: tag.name });
 
+	// Audit log for tag creation
+	await logCreate(
+		userId,
+		"Tag",
+		tag.id,
+		{
+			name: tag.name,
+			color: tag.color,
+		},
+		{
+			description: `Tag "${tag.name}" created`,
+		},
+	);
+
 	return tag as Tag;
 }
 
@@ -199,6 +212,30 @@ export async function updateTag(
 
 	logger.info("Tag updated successfully", { id, name: updatedTag.name });
 
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in existingTag) {
+			const oldValue = (existingTag as any)[key];
+			const newValue = (updatedTag as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for tag update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(userId, "Tag", id, oldDataForAudit, newDataForAudit, {
+			description: `Tag "${updatedTag.name}" updated`,
+			excludeFields: ["id", "createdAt", "updatedAt", "userId"],
+		});
+	}
+
 	return updatedTag as Tag;
 }
 
@@ -227,9 +264,20 @@ export async function deleteTag(id: string, userId: string): Promise<void> {
 		throw new Error("CONFLICT");
 	}
 
+	// Prepare tag data for audit
+	const tagDataForAudit = {
+		name: tag.name,
+		color: tag.color,
+	};
+
 	await prisma.tag.delete({ where: { id } });
 
 	logger.info("Tag deleted successfully", { id });
+
+	// Audit log for tag deletion
+	await logDelete(userId, "Tag", id, tagDataForAudit, {
+		description: `Tag "${tag.name}" deleted`,
+	});
 }
 
 export async function getPopularTags(

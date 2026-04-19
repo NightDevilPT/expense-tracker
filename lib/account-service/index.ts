@@ -1,5 +1,3 @@
-// lib/account-service/index.ts
-
 import { prisma } from "@/lib/prisma";
 import { Logger } from "@/lib/logger-service";
 import {
@@ -21,6 +19,7 @@ import type {
 	GetBalanceHistoryParams,
 	PaginatedHistoryResult,
 } from "./types";
+import { logCreate, logUpdate, logDelete } from "@/lib/audit-service";
 
 // lib/utils/ip-address.ts
 
@@ -145,7 +144,6 @@ export async function createAccount(
 		});
 
 		// ALWAYS create balance history record (even if balance is 0)
-		// This ensures we have a complete history from day 1
 		await tx.accountBalanceHistory.create({
 			data: {
 				accountId: newAccount.id,
@@ -168,6 +166,25 @@ export async function createAccount(
 		name: account.name,
 		initialBalance: account.balance,
 	});
+
+	// Audit log for account creation
+	await logCreate(
+		userId,
+		"Account",
+		account.id,
+		{
+			name: account.name,
+			type: account.type,
+			balance: account.balance,
+			currency: account.currency,
+			color: account.color,
+			notes: account.notes,
+			isDefault: account.isDefault,
+		},
+		{
+			description: `Account "${account.name}" created with initial balance ${account.balance}`,
+		},
+	);
 
 	return account as Account;
 }
@@ -217,6 +234,43 @@ export async function updateAccount(
 		name: updatedAccount.name,
 	});
 
+	// Prepare old and new data for audit (only changed fields)
+	const oldDataForAudit: Record<string, any> = {};
+	const newDataForAudit: Record<string, any> = {};
+
+	for (const key of Object.keys(validatedData)) {
+		if (key in existingAccount) {
+			const oldValue = (existingAccount as any)[key];
+			const newValue = (updatedAccount as any)[key];
+
+			if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+				oldDataForAudit[key] = oldValue;
+				newDataForAudit[key] = newValue;
+			}
+		}
+	}
+
+	// Audit log for account update
+	if (Object.keys(oldDataForAudit).length > 0) {
+		await logUpdate(
+			userId,
+			"Account",
+			id,
+			oldDataForAudit,
+			newDataForAudit,
+			{
+				description: `Account "${updatedAccount.name}" updated`,
+				excludeFields: [
+					"id",
+					"createdAt",
+					"updatedAt",
+					"userId",
+					"balance",
+				],
+			},
+		);
+	}
+
 	return updatedAccount as Account;
 }
 
@@ -245,9 +299,23 @@ export async function deleteAccount(
 		throw new Error("CONFLICT");
 	}
 
+	// Prepare account data for audit
+	const accountDataForAudit = {
+		name: account.name,
+		type: account.type,
+		balance: account.balance,
+		currency: account.currency,
+		isDefault: account.isDefault,
+	};
+
 	await prisma.account.delete({ where: { id } });
 
 	logger.info("Account deleted successfully", { id });
+
+	// Audit log for account deletion
+	await logDelete(userId, "Account", id, accountDataForAudit, {
+		description: `Account "${account.name}" deleted`,
+	});
 }
 
 export async function addBalanceToAccount(
@@ -318,6 +386,23 @@ export async function addBalanceToAccount(
 		previousBalance: account.balance,
 		newBalance,
 	});
+
+	// Audit log for balance change
+	await logCreate(
+		userId,
+		"Account",
+		id,
+		{
+			previousBalance: account.balance,
+			newBalance: newBalance,
+			changeAmount: changeAmount,
+			changeType: validatedData.type === "ADD" ? "DEPOSIT" : "WITHDRAWAL",
+			description: validatedData.description,
+		},
+		{
+			description: `${validatedData.type === "ADD" ? "Added" : "Withdrawn"} ${validatedData.amount} ${account.currency} to account "${account.name}". New balance: ${newBalance}`,
+		},
+	);
 
 	return result as Account;
 }
