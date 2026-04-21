@@ -30,7 +30,7 @@ export default function RootLayout({
 				className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased w-full h-screen overflow-hidden`}
 			>
 				<ThemeContextProvider>{children}</ThemeContextProvider>
-        <Toaster />
+				<Toaster />
 			</body>
 		</html>
 	);

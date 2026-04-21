@@ -40,8 +40,10 @@ import {
 import Link from "next/link";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import SpotlightCard from "@/components/ui/spotlight-card";
+import { useRouter } from "next/navigation";
 
 const HomePage = () => {
+	const route = useRouter()
 	const features = [
 		{
 			icon: Wallet,
@@ -280,6 +282,7 @@ const HomePage = () => {
 								variant="ghost"
 								size="sm"
 								className="hidden sm:inline-flex"
+								onClick={()=>route.push("/auth/login")}
 							>
 								Sign In
 							</Button>

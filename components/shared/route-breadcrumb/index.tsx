@@ -29,12 +29,6 @@ export const RouteBreadcrumb: React.FC = () => {
 
 	// Create breadcrumb items
 	const breadcrumbItems: RouteBreadcrumb[] = [
-		// Always include Home
-		{
-			label: "Home",
-			href: "/",
-			isCurrent: pathname === "/",
-		},
 		// Map path segments
 		...pathSegments.map((segment: string, index: number) => {
 			const href = `/${pathSegments.slice(0, index + 1).join("/")}`;
