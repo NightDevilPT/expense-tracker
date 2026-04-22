@@ -1,3 +1,5 @@
+"use client";
+
 import { RouteBreadcrumb } from "@/components/shared/route-breadcrumb";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -12,6 +14,9 @@ import {
 } from "@/components/ui/sidebar";
 import HeaderLogo from "./header-logo";
 import { UserNav } from "./user-nav";
+import { NavContent } from "./nav-content";
+import { routes } from "./route";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SidebarLayout({
 	children,
@@ -20,14 +25,21 @@ export default function SidebarLayout({
 }) {
 	return (
 		<SidebarProvider>
-			<Sidebar variant="floating" collapsible="icon">
+			<Sidebar
+				variant="floating"
+				collapsible="icon"
+				className="!space-y-5"
+			>
 				<SidebarHeader>
 					<HeaderLogo
 						title="Expense Tracker"
 						subtitle="Manage your own expense tracker"
 					/>
 				</SidebarHeader>
-				<SidebarContent>Content</SidebarContent>
+				<Separator className="w-full h-[1px]" />
+				<SidebarContent className="py-5">
+					<NavContent items={routes} />
+				</SidebarContent>
 				<SidebarFooter>Footer</SidebarFooter>
 			</Sidebar>
 			<SidebarInset className="w-full h-screen grid grid-rows-[60px_1px_1fr]">
@@ -42,7 +54,7 @@ export default function SidebarLayout({
 					</div>
 				</div>
 				<Separator />
-				<div className="px-5 pt-5">{children}</div>
+				<ScrollArea className="px-5 pt-5 h-full overflow-auto">{children}</ScrollArea>
 			</SidebarInset>
 		</SidebarProvider>
 	);

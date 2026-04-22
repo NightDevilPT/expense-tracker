@@ -126,15 +126,6 @@ export function UserNav({ compact = false }: UserNavProps) {
 								{getUserInitial()}
 							</AvatarFallback>
 						</Avatar>
-
-						{/* <div className="flex flex-col items-start text-sm">
-							<span className="font-medium leading-none">
-								{user.name}
-							</span>
-							<span className="text-xs text-muted-foreground">
-								{user.email}
-							</span>
-						</div> */}
 					</div>
 				</Button>
 			</DropdownMenuTrigger>
