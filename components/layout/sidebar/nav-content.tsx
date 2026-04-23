@@ -65,7 +65,7 @@ export function NavContent({ items }: NavContentProps) {
 										className={`w-full justify-start gap-3 ${
 											active
 												? "!bg-secondary"
-												: "!bg-transparent"
+												: "!bg-transparent hover:!bg-secondary"
 										}`}
 									>
 										{item.icon && (
@@ -96,7 +96,7 @@ export function NavContent({ items }: NavContentProps) {
 														className={`w-full justify-start ${
 															isActive(child.href)
 																? "!bg-secondary"
-																: "!bg-transparent"
+																: "!bg-transparent hover:!bg-secondary"
 														}`}
 													>
 														<Link href={child.href}>
@@ -121,7 +121,9 @@ export function NavContent({ items }: NavContentProps) {
 							asChild
 							isActive={active}
 							className={`w-full justify-start gap-3 ${
-								active ? "!bg-secondary" : "!bg-transparent"
+								active
+									? "!bg-secondary"
+									: "!bg-transparent hover:!bg-secondary"
 							}`}
 						>
 							<Link href={item.href}>

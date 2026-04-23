@@ -20,23 +20,11 @@ import type {
 	AccountType,
 } from "@/lib/account-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
 // ============================================
-
-interface PaginatedHistoryResult {
-	data: AccountBalanceHistory[];
-	total: number;
-	page: number;
-	limit: number;
-	totalPages: number;
-}
 
 interface AccountsContextType {
 	accounts: Account[];
@@ -131,9 +119,10 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 					queryParams.set("isDefault", params.isDefault.toString());
 				}
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<Account[]>
-				>(`/accounts?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<Account[]>
+				const response = await apiClient.get<Account[]>(
+					`/accounts?${queryParams.toString()}`,
+				);
 
 				setAccounts(response.data);
 				setPagination(response.meta.pagination || null);
@@ -173,9 +162,10 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 				if (params.days)
 					queryParams.set("days", params.days.toString());
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<AccountBalanceHistory[]>
-				>(`/accounts/${accountId}/history?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<AccountBalanceHistory[]>
+				const response = await apiClient.get<AccountBalanceHistory[]>(
+					`/accounts/${accountId}/history?${queryParams.toString()}`,
+				);
 
 				setBalanceHistory(response.data);
 				setHistoryPagination(response.meta.pagination || null);
@@ -200,9 +190,11 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<Account>
-				>("/accounts", data);
+				// ✅ apiClient.post returns ApiSuccessResponse<Account>
+				const response = await apiClient.post<Account>(
+					"/accounts",
+					data,
+				);
 				const newAccount = response.data;
 				setAccounts((prev) => [newAccount, ...prev]);
 				return newAccount;
@@ -238,9 +230,11 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<Account>
-				>(`/accounts/${id}`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<Account>
+				const response = await apiClient.put<Account>(
+					`/accounts/${id}`,
+					data,
+				);
 				const updatedAccount = response.data;
 				setAccounts((prev) =>
 					prev.map((account) =>
@@ -279,9 +273,8 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/accounts/${id}`,
-				);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/accounts/${id}`);
 				setAccounts((prev) =>
 					prev.filter((account) => account.id !== id),
 				);
@@ -317,9 +310,11 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<Account>
-				>(`/accounts/${id}/add-balance`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<Account>
+				const response = await apiClient.put<Account>(
+					`/accounts/${id}/add-balance`,
+					data,
+				);
 				const updatedAccount = response.data;
 				setAccounts((prev) =>
 					prev.map((account) =>
@@ -355,9 +350,10 @@ export function AccountsProvider({ children }: AccountsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<Account>
-				>(`/accounts/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<Account>
+				const response = await apiClient.get<Account>(
+					`/accounts/${id}`,
+				);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch account";

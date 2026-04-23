@@ -14,7 +14,6 @@ import type {
 	BulkCreateTransactionInput,
 	BulkDeleteTransactionInput,
 	ExportOptionsInput,
-	TransactionSummaryQueryInput,
 } from "@/lib/transaction-service/validation";
 import { apiClient, ApiError } from "@/lib/api-client";
 import type {
@@ -23,14 +22,9 @@ import type {
 	BulkCreateResult,
 	BulkDeleteResult,
 	TransactionType,
-	GetTransactionsParams,
 } from "@/lib/transaction-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -161,18 +155,19 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 				if (params.sortOrder)
 					queryParams.set("sortOrder", params.sortOrder);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<Transaction[]>
-				>(`/transactions?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<Transaction[]>
+				const response = await apiClient.get<Transaction[]>(
+					`/transactions?${queryParams.toString()}`,
+				);
 
 				setTransactions(response.data);
 				setPagination(response.meta.pagination || null);
 			} catch (error) {
-				const errorMessage =
+				setError(
 					error instanceof ApiError
 						? error.message
-						: "Failed to fetch transactions";
-				setError(errorMessage);
+						: "Failed to fetch transactions",
+				);
 			} finally {
 				setIsLoading(false);
 			}
@@ -209,17 +204,18 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 					queryParams.set("accountIds", params.accountIds.join(","));
 				}
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<TransactionSummary>
-				>(`/transactions/summary?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<TransactionSummary>
+				const response = await apiClient.get<TransactionSummary>(
+					`/transactions/summary?${queryParams.toString()}`,
+				);
 
 				setSummary(response.data);
 			} catch (error) {
-				const errorMessage =
+				setError(
 					error instanceof ApiError
 						? error.message
-						: "Failed to fetch transaction summary";
-				setError(errorMessage);
+						: "Failed to fetch summary",
+				);
 			} finally {
 				setIsLoading(false);
 			}
@@ -235,33 +231,19 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<Transaction>
-				>("/transactions", data);
-				const newTransaction = response.data;
-
-				// Refresh lists
+				// ✅ apiClient.post returns ApiSuccessResponse<Transaction>
+				const response = await apiClient.post<Transaction>(
+					"/transactions",
+					data,
+				);
 				await Promise.all([fetchTransactions(), fetchSummary()]);
-
-				return newTransaction;
+				return response.data;
 			} catch (error) {
-				let errorMessage = "Failed to create transaction";
-
-				if (error instanceof ApiError) {
-					if (error.message.includes("Category")) {
-						errorMessage = "Category not found or access denied";
-					} else if (error.message.includes("Account")) {
-						errorMessage = "Account not found or access denied";
-					} else if (error.message.includes("Tag")) {
-						errorMessage = "One or more tags not found";
-					} else if (error.message.includes("INSUFFICIENT_BALANCE")) {
-						errorMessage = "Insufficient balance in source account";
-					} else {
-						errorMessage = error.message;
-					}
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to create transaction",
+				);
 				return null;
 			} finally {
 				setIsLoading(false);
@@ -281,38 +263,22 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<Transaction>
-				>(`/transactions/${id}`, data);
-				const updatedTransaction = response.data;
-
-				// Update in local state
-				setTransactions((prev) =>
-					prev.map((tx) => (tx.id === id ? updatedTransaction : tx)),
+				// ✅ apiClient.put returns ApiSuccessResponse<Transaction>
+				const response = await apiClient.put<Transaction>(
+					`/transactions/${id}`,
+					data,
 				);
-
-				// Refresh summary
+				setTransactions((prev) =>
+					prev.map((tx) => (tx.id === id ? response.data : tx)),
+				);
 				await fetchSummary();
-
-				return updatedTransaction;
+				return response.data;
 			} catch (error) {
-				let errorMessage = "Failed to update transaction";
-
-				if (error instanceof ApiError) {
-					if (error.code === ErrorCode.NOT_FOUND) {
-						errorMessage = "Transaction not found";
-					} else if (error.message.includes("Category")) {
-						errorMessage = "Category not found or access denied";
-					} else if (error.message.includes("Tag")) {
-						errorMessage = "One or more tags not found";
-					} else if (error.message.includes("INSUFFICIENT_BALANCE")) {
-						errorMessage = "Insufficient balance for this update";
-					} else {
-						errorMessage = error.message;
-					}
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to update transaction",
+				);
 				return null;
 			} finally {
 				setIsLoading(false);
@@ -329,29 +295,17 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/transactions/${id}`,
-				);
-
-				// Remove from local state
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/transactions/${id}`);
 				setTransactions((prev) => prev.filter((tx) => tx.id !== id));
-
-				// Refresh summary
 				await fetchSummary();
-
 				return true;
 			} catch (error) {
-				let errorMessage = "Failed to delete transaction";
-
-				if (error instanceof ApiError) {
-					if (error.code === ErrorCode.NOT_FOUND) {
-						errorMessage = "Transaction not found";
-					} else {
-						errorMessage = error.message;
-					}
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to delete transaction",
+				);
 				return false;
 			} finally {
 				setIsLoading(false);
@@ -370,23 +324,19 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<BulkCreateResult>
-				>("/transactions/bulk", data);
-				const result = response.data;
-
-				// Refresh lists
+				// ✅ apiClient.post returns ApiSuccessResponse<BulkCreateResult>
+				const response = await apiClient.post<BulkCreateResult>(
+					"/transactions/bulk",
+					data,
+				);
 				await Promise.all([fetchTransactions(), fetchSummary()]);
-
-				return result;
+				return response.data;
 			} catch (error) {
-				let errorMessage = "Failed to bulk create transactions";
-
-				if (error instanceof ApiError) {
-					errorMessage = error.message;
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to bulk create",
+				);
 				return null;
 			} finally {
 				setIsLoading(false);
@@ -405,38 +355,19 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			setError(null);
 
 			try {
-				// Use raw fetch for DELETE with body
-				const response = await fetch("/api/transactions/bulk", {
-					method: "DELETE",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					credentials: "include",
-					body: JSON.stringify(data),
-				});
-
-				const result = await response.json();
-
-				if (!result.success) {
-					throw new ApiError(
-						result.error.message,
-						result.error.code,
-						response.status,
-					);
-				}
-
-				// Refresh lists
+				// ✅ apiClient.delete with body returns ApiSuccessResponse<BulkDeleteResult>
+				const response = await apiClient.delete<BulkDeleteResult>(
+					"/transactions/bulk",
+					data,
+				);
 				await Promise.all([fetchTransactions(), fetchSummary()]);
-
-				return result.data;
+				return response.data;
 			} catch (error) {
-				let errorMessage = "Failed to bulk delete transactions";
-
-				if (error instanceof ApiError) {
-					errorMessage = error.message;
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to bulk delete",
+				);
 				return null;
 			} finally {
 				setIsLoading(false);
@@ -461,14 +392,15 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 					queryParams.set("startDate", options.startDate);
 				if (options.endDate)
 					queryParams.set("endDate", options.endDate);
-				if (options.includeAttachments) {
+				if (options.includeAttachments)
 					queryParams.set("includeAttachments", "true");
-				}
 
 				if (options.format === "csv") {
 					const response = await fetch(
 						`/api/transactions/export?${queryParams.toString()}`,
-						{ credentials: "include" },
+						{
+							credentials: "include",
+						},
 					);
 
 					if (!response.ok) {
@@ -482,8 +414,6 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 					}
 
 					const csvData = await response.text();
-
-					// Trigger download
 					const blob = new Blob([csvData], { type: "text/csv" });
 					const url = window.URL.createObjectURL(blob);
 					const a = document.createElement("a");
@@ -493,22 +423,20 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 					a.click();
 					document.body.removeChild(a);
 					window.URL.revokeObjectURL(url);
-
 					return csvData;
 				} else {
-					const response = await apiClient.get<
-						ApiSuccessResponse<Transaction[]>
-					>(`/transactions/export?${queryParams.toString()}`);
+					// ✅ apiClient.get returns ApiSuccessResponse<Transaction[]>
+					const response = await apiClient.get<Transaction[]>(
+						`/transactions/export?${queryParams.toString()}`,
+					);
 					return response.data;
 				}
 			} catch (error) {
-				let errorMessage = "Failed to export transactions";
-
-				if (error instanceof ApiError) {
-					errorMessage = error.message;
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to export",
+				);
 				return null;
 			} finally {
 				setIsLoading(false);
@@ -522,29 +450,23 @@ export function TransactionsProvider({ children }: TransactionsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<Transaction>
-				>(`/transactions/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<Transaction>
+				const response = await apiClient.get<Transaction>(
+					`/transactions/${id}`,
+				);
 				return response.data;
 			} catch (error) {
-				let errorMessage = "Failed to fetch transaction";
-
-				if (error instanceof ApiError) {
-					if (error.code === ErrorCode.NOT_FOUND) {
-						errorMessage = "Transaction not found";
-					} else {
-						errorMessage = error.message;
-					}
-				}
-
-				setError(errorMessage);
+				setError(
+					error instanceof ApiError
+						? error.message
+						: "Failed to fetch transaction",
+				);
 				return null;
 			}
 		},
 		[isAuthenticated],
 	);
 
-	// Initial fetch
 	useEffect(() => {
 		if (isAuthenticated) {
 			Promise.all([fetchTransactions(), fetchSummary()]);

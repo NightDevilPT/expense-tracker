@@ -1,7 +1,8 @@
-export default function CategoriesPage() {
-	return (
-		<div>
-			<h1>Categories</h1>
-		</div>
-	);
-}
+import React from "react";
+import { CategoriesPage } from "@/components/pages/categories";
+
+const Categories = () => {
+	return <CategoriesPage />;
+};
+
+export default Categories;

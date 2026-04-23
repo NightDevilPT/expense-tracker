@@ -1,6 +1,20 @@
-// components\layout\sidebar\route.ts
+// components/layout/sidebar/route.ts
 
-import { ChartBarStacked, LayoutDashboard } from "lucide-react";
+import {
+	LayoutDashboard,
+	Wallet,
+	ChartBarStacked,
+	ArrowLeftRight,
+	Target,
+	Tag,
+	FileText,
+	Settings,
+	Bell,
+	BarChart3,
+	TrendingUp,
+	Repeat,
+	User,
+} from "lucide-react";
 import { ElementType } from "react";
 
 export interface IRoute {
@@ -13,19 +27,63 @@ export interface IRoute {
 }
 
 export const routes: IRoute[] = [
+	// MAIN DASHBOARD
 	{
 		href: "/dashboard",
 		label: "Dashboard",
 		icon: LayoutDashboard,
+	},
+
+	// FINANCIAL CORE
+	{
+		href: "/transactions",
+		label: "Transactions",
+		icon: ArrowLeftRight,
+	},
+	{
+		href: "/accounts",
+		label: "Accounts",
+		icon: Wallet,
 	},
 	{
 		href: "/categories",
 		label: "Categories",
 		icon: ChartBarStacked,
 	},
+
+	// BUDGET & PLANNING
 	{
-		href: "/transactions",
-		label: "Transactions",
-		icon: LayoutDashboard,
+		href: "/budgets",
+		label: "Budgets",
+		icon: TrendingUp,
+	},
+	{
+		href: "/recurring",
+		label: "Recurring",
+		icon: Repeat,
+	},
+	{
+		href: "/savings-goals",
+		label: "Savings Goals",
+		icon: Target,
+	},
+
+	// ORGANIZATION
+	{
+		href: "/tags",
+		label: "Tags",
+		icon: Tag,
+	},
+
+	// REPORTS & HISTORY
+	{
+		href: "/reports",
+		label: "Reports",
+		icon: BarChart3,
+	},
+	{
+		href: "/audit-logs",
+		label: "Audit Logs",
+		icon: FileText,
 	},
 ];

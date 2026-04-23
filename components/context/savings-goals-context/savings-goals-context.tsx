@@ -21,11 +21,7 @@ import type {
 	SavingsGoalStatus,
 } from "@/lib/savings-goal-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -125,9 +121,10 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 				if (params.sortOrder)
 					queryParams.set("sortOrder", params.sortOrder);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<SavingsGoalWithProgress[]>
-				>(`/savings-goals?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<SavingsGoalWithProgress[]>
+				const response = await apiClient.get<SavingsGoalWithProgress[]>(
+					`/savings-goals?${queryParams.toString()}`,
+				);
 
 				setGoals(response.data);
 				setPagination(response.meta.pagination || null);
@@ -151,9 +148,10 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 		setError(null);
 
 		try {
-			const response = await apiClient.get<
-				ApiSuccessResponse<SavingsGoalWithProgress[]>
-			>("/savings-goals/progress");
+			// ✅ apiClient.get returns ApiSuccessResponse<SavingsGoalWithProgress[]>
+			const response = await apiClient.get<SavingsGoalWithProgress[]>(
+				"/savings-goals/progress",
+			);
 
 			setActiveGoals(response.data);
 		} catch (error) {
@@ -175,12 +173,13 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<SavingsGoal>
-				>("/savings-goals", data);
+				// ✅ apiClient.post returns ApiSuccessResponse<SavingsGoal>
+				const response = await apiClient.post<SavingsGoal>(
+					"/savings-goals",
+					data,
+				);
 				const newGoal = response.data;
 
-				// Refresh lists
 				await Promise.all([fetchGoals(), fetchActiveGoalsProgress()]);
 
 				return newGoal;
@@ -215,19 +214,19 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<SavingsGoal>
-				>(`/savings-goals/${id}`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<SavingsGoal>
+				const response = await apiClient.put<SavingsGoal>(
+					`/savings-goals/${id}`,
+					data,
+				);
 				const updatedGoal = response.data;
 
-				// Update in local state
 				setGoals((prev) =>
 					prev.map((goal) =>
 						goal.id === id ? { ...goal, ...updatedGoal } : goal,
 					),
 				);
 
-				// Refresh active goals
 				await fetchActiveGoalsProgress();
 
 				return updatedGoal;
@@ -261,11 +260,9 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/savings-goals/${id}`,
-				);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/savings-goals/${id}`);
 
-				// Remove from local state
 				setGoals((prev) => prev.filter((goal) => goal.id !== id));
 				setActiveGoals((prev) => prev.filter((goal) => goal.id !== id));
 
@@ -301,12 +298,13 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<ContributionResult>
-				>(`/savings-goals/${id}/contribute`, data);
+				// ✅ apiClient.post returns ApiSuccessResponse<ContributionResult>
+				const response = await apiClient.post<ContributionResult>(
+					`/savings-goals/${id}/contribute`,
+					data,
+				);
 				const result = response.data;
 
-				// Update goal in local state with new amounts
 				setGoals((prev) =>
 					prev.map((goal) =>
 						goal.id === id
@@ -322,7 +320,6 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 					),
 				);
 
-				// Refresh active goals
 				await fetchActiveGoalsProgress();
 
 				return result;
@@ -354,9 +351,10 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<SavingsGoalWithProgress>
-				>(`/savings-goals/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<SavingsGoalWithProgress>
+				const response = await apiClient.get<SavingsGoalWithProgress>(
+					`/savings-goals/${id}`,
+				);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch savings goal";
@@ -376,7 +374,6 @@ export function SavingsGoalsProvider({ children }: SavingsGoalsProviderProps) {
 		[isAuthenticated],
 	);
 
-	// Initial fetch
 	useEffect(() => {
 		if (isAuthenticated) {
 			Promise.all([fetchGoals(), fetchActiveGoalsProgress()]);

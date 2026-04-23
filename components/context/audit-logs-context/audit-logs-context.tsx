@@ -11,21 +11,12 @@ import React, {
 import { apiClient, ApiError } from "@/lib/api-client";
 import type { AuditLogEntry, EntityType } from "@/lib/audit-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 import { AuditAction } from "@/generated/prisma/enums";
 
 // ============================================
 // TYPES
 // ============================================
-
-interface ExportResponse {
-	data: AuditLogEntry[] | string;
-	meta: ApiMeta;
-}
 
 interface AuditLogsContextType {
 	auditLogs: AuditLogEntry[];
@@ -116,9 +107,10 @@ export function AuditLogsProvider({ children }: AuditLogsProviderProps) {
 					queryParams.set("startDate", params.startDate);
 				if (params.endDate) queryParams.set("endDate", params.endDate);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<AuditLogEntry[]>
-				>(`/audit-logs?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<AuditLogEntry[]>
+				const response = await apiClient.get<AuditLogEntry[]>(
+					`/audit-logs?${queryParams.toString()}`,
+				);
 
 				setAuditLogs(response.data);
 				setPagination(response.meta.pagination || null);
@@ -163,7 +155,7 @@ export function AuditLogsProvider({ children }: AuditLogsProviderProps) {
 				const format = params.format || "json";
 
 				if (format === "csv") {
-					// For CSV, we need to handle as blob
+					// For CSV, use raw fetch to handle blob download
 					const response = await fetch(
 						`/api/audit-logs?${queryParams.toString()}`,
 						{
@@ -196,10 +188,10 @@ export function AuditLogsProvider({ children }: AuditLogsProviderProps) {
 
 					return csvData;
 				} else {
-					// JSON format
-					const response = await apiClient.get<
-						ApiSuccessResponse<AuditLogEntry[]>
-					>(`/audit-logs?${queryParams.toString()}`);
+					// ✅ JSON format - apiClient.get returns ApiSuccessResponse<AuditLogEntry[]>
+					const response = await apiClient.get<AuditLogEntry[]>(
+						`/audit-logs?${queryParams.toString()}`,
+					);
 					return response.data;
 				}
 			} catch (error) {
@@ -221,9 +213,10 @@ export function AuditLogsProvider({ children }: AuditLogsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<AuditLogEntry>
-				>(`/audit-logs/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<AuditLogEntry>
+				const response = await apiClient.get<AuditLogEntry>(
+					`/audit-logs/${id}`,
+				);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch audit log";
@@ -252,16 +245,16 @@ export function AuditLogsProvider({ children }: AuditLogsProviderProps) {
 			if (!isAuthenticated) return [];
 
 			try {
-				// Use the main fetch with filters
 				const queryParams = new URLSearchParams();
 				queryParams.set("entityType", entityType);
 				queryParams.set("entityId", entityId);
 				queryParams.set("limit", limit.toString());
 				queryParams.set("page", "1");
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<AuditLogEntry[]>
-				>(`/audit-logs?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<AuditLogEntry[]>
+				const response = await apiClient.get<AuditLogEntry[]>(
+					`/audit-logs?${queryParams.toString()}`,
+				);
 
 				return response.data;
 			} catch (error) {

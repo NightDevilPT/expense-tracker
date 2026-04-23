@@ -1,9 +1,10 @@
-// lib/api-client.ts
+// lib/api-client/index.ts
 
 import {
 	ApiResponse,
 	ApiErrorResponse,
 	HttpStatus,
+	ApiSuccessResponse,
 } from "@/lib/response-service";
 
 export class ApiError extends Error {
@@ -45,10 +46,11 @@ class ApiClient {
 		};
 	}
 
+	// ✅ Updated: Returns full ApiSuccessResponse<T> instead of just T
 	private async request<T>(
 		endpoint: string,
 		options: RequestOptions = {},
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		const { method = "GET", body, headers = {}, cache, next } = options;
 
 		const url = `${this.baseURL}${endpoint}`;
@@ -82,7 +84,8 @@ class ApiClient {
 				);
 			}
 
-			return data.data;
+			// ✅ Return full success response (data + meta)
+			return data as ApiSuccessResponse<T>;
 		} catch (error) {
 			if (error instanceof ApiError) {
 				throw error;
@@ -100,10 +103,11 @@ class ApiClient {
 		}
 	}
 
+	// ✅ All methods now return ApiSuccessResponse<T>
 	async get<T>(
 		endpoint: string,
 		options?: Omit<RequestOptions, "method" | "body">,
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		return this.request<T>(endpoint, { ...options, method: "GET" });
 	}
 
@@ -111,7 +115,7 @@ class ApiClient {
 		endpoint: string,
 		body?: any,
 		options?: Omit<RequestOptions, "method" | "body">,
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		return this.request<T>(endpoint, { ...options, method: "POST", body });
 	}
 
@@ -119,7 +123,7 @@ class ApiClient {
 		endpoint: string,
 		body?: any,
 		options?: Omit<RequestOptions, "method" | "body">,
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		return this.request<T>(endpoint, { ...options, method: "PUT", body });
 	}
 
@@ -127,7 +131,7 @@ class ApiClient {
 		endpoint: string,
 		body?: any,
 		options?: Omit<RequestOptions, "method">,
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		return this.request<T>(endpoint, {
 			...options,
 			method: "DELETE",
@@ -139,7 +143,7 @@ class ApiClient {
 		endpoint: string,
 		body?: any,
 		options?: Omit<RequestOptions, "method" | "body">,
-	): Promise<T> {
+	): Promise<ApiSuccessResponse<T>> {
 		return this.request<T>(endpoint, { ...options, method: "PATCH", body });
 	}
 }

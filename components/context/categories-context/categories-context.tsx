@@ -15,11 +15,7 @@ import type {
 import { apiClient, ApiError } from "@/lib/api-client";
 import type { Category } from "@/lib/category-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -73,6 +69,8 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 
 	const clearError = useCallback(() => setError(null), []);
 
+	// components/context/categories-context/categories-context.tsx
+
 	const fetchCategories = useCallback(
 		async (
 			params: {
@@ -89,16 +87,16 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 
 			try {
 				const queryParams = new URLSearchParams();
-				if (params.page)
-					queryParams.set("page", params.page.toString());
-				if (params.limit)
-					queryParams.set("limit", params.limit.toString());
+				// ✅ Always set page and limit with defaults
+				queryParams.set("page", String(params.page || 1));
+				queryParams.set("limit", String(params.limit || 5));
+
 				if (params.search) queryParams.set("search", params.search);
 				if (params.type) queryParams.set("type", params.type);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<Category[]>
-				>(`/categories?${queryParams.toString()}`);
+				const response = await apiClient.get<Category[]>(
+					`/categories?${queryParams.toString()}`,
+				);
 
 				setCategories(response.data);
 				setPagination(response.meta.pagination || null);
@@ -123,9 +121,12 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<Category>
-				>("/categories", data);
+				// ✅ apiClient.post returns ApiSuccessResponse<Category>
+				const response = await apiClient.post<Category>(
+					"/categories",
+					data,
+				);
+				// ✅ response.data = Category
 				const newCategory = response.data;
 				setCategories((prev) => [newCategory, ...prev]);
 				return newCategory;
@@ -160,9 +161,12 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<Category>
-				>(`/categories/${id}`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<Category>
+				const response = await apiClient.put<Category>(
+					`/categories/${id}`,
+					data,
+				);
+				// ✅ response.data = Category
 				const updatedCategory = response.data;
 				setCategories((prev) =>
 					prev.map((cat) => (cat.id === id ? updatedCategory : cat)),
@@ -198,9 +202,8 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/categories/${id}`,
-				);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/categories/${id}`);
 				setCategories((prev) => prev.filter((cat) => cat.id !== id));
 				return true;
 			} catch (error) {
@@ -233,9 +236,11 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<Category>
-				>(`/categories/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<Category>
+				const response = await apiClient.get<Category>(
+					`/categories/${id}`,
+				);
+				// ✅ response.data = Category
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch category";

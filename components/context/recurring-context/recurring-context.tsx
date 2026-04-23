@@ -21,11 +21,7 @@ import type {
 	RecurringFrequency,
 } from "@/lib/recurring-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -141,9 +137,10 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 				if (params.sortOrder)
 					queryParams.set("sortOrder", params.sortOrder);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<RecurringWithNextDue[]>
-				>(`/recurring?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<RecurringWithNextDue[]>
+				const response = await apiClient.get<RecurringWithNextDue[]>(
+					`/recurring?${queryParams.toString()}`,
+				);
 
 				setRecurringTransactions(response.data);
 				setPagination(response.meta.pagination || null);
@@ -168,9 +165,10 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<UpcomingRecurring[]>
-				>(`/recurring/upcoming?days=${days}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<UpcomingRecurring[]>
+				const response = await apiClient.get<UpcomingRecurring[]>(
+					`/recurring/upcoming?days=${days}`,
+				);
 
 				setUpcomingRecurring(response.data);
 			} catch (error) {
@@ -196,12 +194,13 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<RecurringTransaction>
-				>("/recurring", data);
+				// ✅ apiClient.post returns ApiSuccessResponse<RecurringTransaction>
+				const response = await apiClient.post<RecurringTransaction>(
+					"/recurring",
+					data,
+				);
 				const newRecurring = response.data;
 
-				// Refresh lists
 				await Promise.all([fetchRecurring(), fetchUpcomingRecurring()]);
 
 				return newRecurring;
@@ -238,19 +237,19 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<RecurringTransaction>
-				>(`/recurring/${id}`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<RecurringTransaction>
+				const response = await apiClient.put<RecurringTransaction>(
+					`/recurring/${id}`,
+					data,
+				);
 				const updatedRecurring = response.data;
 
-				// Update in local state
 				setRecurringTransactions((prev) =>
 					prev.map((rt) =>
 						rt.id === id ? { ...rt, ...updatedRecurring } : rt,
 					),
 				);
 
-				// Refresh upcoming list
 				await fetchUpcomingRecurring();
 
 				return updatedRecurring;
@@ -286,11 +285,9 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/recurring/${id}`,
-				);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/recurring/${id}`);
 
-				// Remove from local state
 				setRecurringTransactions((prev) =>
 					prev.filter((rt) => rt.id !== id),
 				);
@@ -327,12 +324,12 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<RecurringTransaction>
-				>(`/recurring/${id}/pause`);
+				// ✅ apiClient.post returns ApiSuccessResponse<RecurringTransaction>
+				const response = await apiClient.post<RecurringTransaction>(
+					`/recurring/${id}/pause`,
+				);
 				const pausedRecurring = response.data;
 
-				// Update in local state
 				setRecurringTransactions((prev) =>
 					prev.map((rt) =>
 						rt.id === id ? { ...rt, isActive: false } : rt,
@@ -374,19 +371,18 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<RecurringTransaction>
-				>(`/recurring/${id}/resume`);
+				// ✅ apiClient.post returns ApiSuccessResponse<RecurringTransaction>
+				const response = await apiClient.post<RecurringTransaction>(
+					`/recurring/${id}/resume`,
+				);
 				const resumedRecurring = response.data;
 
-				// Update in local state
 				setRecurringTransactions((prev) =>
 					prev.map((rt) =>
 						rt.id === id ? { ...rt, isActive: true } : rt,
 					),
 				);
 
-				// Refresh upcoming list
 				await fetchUpcomingRecurring();
 
 				return resumedRecurring;
@@ -420,9 +416,10 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<RecurringWithNextDue>
-				>(`/recurring/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<RecurringWithNextDue>
+				const response = await apiClient.get<RecurringWithNextDue>(
+					`/recurring/${id}`,
+				);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch recurring transaction";
@@ -442,7 +439,6 @@ export function RecurringProvider({ children }: RecurringProviderProps) {
 		[isAuthenticated],
 	);
 
-	// Initial fetch
 	useEffect(() => {
 		if (isAuthenticated) {
 			Promise.all([fetchRecurring(), fetchUpcomingRecurring()]);

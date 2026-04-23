@@ -16,11 +16,7 @@ import type {
 import { apiClient, ApiError } from "@/lib/api-client";
 import type { Tag, TagWithCount, PopularTag } from "@/lib/tag-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -85,9 +81,10 @@ export function TagsProvider({ children }: TagsProviderProps) {
 				if (params.sortOrder)
 					queryParams.set("sortOrder", params.sortOrder);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<TagWithCount[]>
-				>(`/tags?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<TagWithCount[]>
+				const response = await apiClient.get<TagWithCount[]>(
+					`/tags?${queryParams.toString()}`,
+				);
 
 				setTags(response.data);
 				setPagination(response.meta.pagination || null);
@@ -112,9 +109,10 @@ export function TagsProvider({ children }: TagsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<PopularTag[]>
-				>(`/tags/popular?limit=${limit}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<PopularTag[]>
+				const response = await apiClient.get<PopularTag[]>(
+					`/tags/popular?limit=${limit}`,
+				);
 
 				setPopularTags(response.data);
 			} catch (error) {
@@ -138,10 +136,8 @@ export function TagsProvider({ children }: TagsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<ApiSuccessResponse<Tag>>(
-					"/tags",
-					data,
-				);
+				// ✅ apiClient.post returns ApiSuccessResponse<Tag>
+				const response = await apiClient.post<Tag>("/tags", data);
 				const newTag = response.data;
 				setTags((prev) => [newTag as TagWithCount, ...prev]);
 				return newTag;
@@ -173,10 +169,8 @@ export function TagsProvider({ children }: TagsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<ApiSuccessResponse<Tag>>(
-					`/tags/${id}`,
-					data,
-				);
+				// ✅ apiClient.put returns ApiSuccessResponse<Tag>
+				const response = await apiClient.put<Tag>(`/tags/${id}`, data);
 				const updatedTag = response.data;
 				setTags((prev) =>
 					prev.map((tag) =>
@@ -214,9 +208,9 @@ export function TagsProvider({ children }: TagsProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(`/tags/${id}`);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/tags/${id}`);
 				setTags((prev) => prev.filter((tag) => tag.id !== id));
-				// Also remove from popular tags if present
 				setPopularTags((prev) => prev.filter((tag) => tag.id !== id));
 				return true;
 			} catch (error) {
@@ -247,9 +241,8 @@ export function TagsProvider({ children }: TagsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<ApiSuccessResponse<Tag>>(
-					`/tags/${id}`,
-				);
+				// ✅ apiClient.get returns ApiSuccessResponse<Tag>
+				const response = await apiClient.get<Tag>(`/tags/${id}`);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch tag";

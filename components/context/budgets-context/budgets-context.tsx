@@ -21,11 +21,7 @@ import type {
 	BudgetPeriod,
 } from "@/lib/budget-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
-import {
-	ErrorCode,
-	type ApiSuccessResponse,
-	type ApiMeta,
-} from "@/lib/response-service";
+import { ErrorCode, type ApiMeta } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -123,9 +119,10 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 				if (params.sortOrder)
 					queryParams.set("sortOrder", params.sortOrder);
 
-				const response = await apiClient.get<
-					ApiSuccessResponse<BudgetWithProgress[]>
-				>(`/budgets?${queryParams.toString()}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<BudgetWithProgress[]>
+				const response = await apiClient.get<BudgetWithProgress[]>(
+					`/budgets?${queryParams.toString()}`,
+				);
 
 				setBudgets(response.data);
 				setPagination(response.meta.pagination || null);
@@ -149,10 +146,9 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 		setError(null);
 
 		try {
+			// ✅ apiClient.get returns ApiSuccessResponse<CurrentMonthBudget[]>
 			const response =
-				await apiClient.get<ApiSuccessResponse<CurrentMonthBudget[]>>(
-					"/budgets/current",
-				);
+				await apiClient.get<CurrentMonthBudget[]>("/budgets/current");
 
 			setCurrentBudgets(response.data);
 		} catch (error) {
@@ -173,10 +169,9 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 		setError(null);
 
 		try {
+			// ✅ apiClient.get returns ApiSuccessResponse<BudgetAlert[]>
 			const response =
-				await apiClient.get<ApiSuccessResponse<BudgetAlert[]>>(
-					"/budgets/alerts",
-				);
+				await apiClient.get<BudgetAlert[]>("/budgets/alerts");
 
 			setAlerts(response.data);
 		} catch (error) {
@@ -198,11 +193,9 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.post<
-					ApiSuccessResponse<Budget>
-				>("/budgets", data);
+				// ✅ apiClient.post returns ApiSuccessResponse<Budget>
+				const response = await apiClient.post<Budget>("/budgets", data);
 				const newBudget = response.data;
-				// Refresh budgets list and current budgets
 				await Promise.all([fetchBudgets(), fetchCurrentBudgets()]);
 				return newBudget;
 			} catch (error) {
@@ -241,12 +234,13 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 			setError(null);
 
 			try {
-				const response = await apiClient.put<
-					ApiSuccessResponse<Budget>
-				>(`/budgets/${id}`, data);
+				// ✅ apiClient.put returns ApiSuccessResponse<Budget>
+				const response = await apiClient.put<Budget>(
+					`/budgets/${id}`,
+					data,
+				);
 				const updatedBudget = response.data;
 
-				// Update in local state
 				setBudgets((prev) =>
 					prev.map((budget) =>
 						budget.id === id
@@ -255,7 +249,6 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 					),
 				);
 
-				// Refresh current budgets and alerts
 				await Promise.all([fetchCurrentBudgets(), fetchAlerts()]);
 
 				return updatedBudget;
@@ -297,17 +290,14 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 			setError(null);
 
 			try {
-				await apiClient.delete<ApiSuccessResponse<null>>(
-					`/budgets/${id}`,
-				);
+				// ✅ apiClient.delete returns ApiSuccessResponse<null>
+				await apiClient.delete<null>(`/budgets/${id}`);
 
-				// Remove from local state
 				setBudgets((prev) => prev.filter((budget) => budget.id !== id));
 				setCurrentBudgets((prev) =>
 					prev.filter((budget) => budget.id !== id),
 				);
 
-				// Refresh alerts
 				await fetchAlerts();
 
 				return true;
@@ -336,9 +326,10 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 			if (!isAuthenticated) return null;
 
 			try {
-				const response = await apiClient.get<
-					ApiSuccessResponse<BudgetWithProgress>
-				>(`/budgets/${id}`);
+				// ✅ apiClient.get returns ApiSuccessResponse<BudgetWithProgress>
+				const response = await apiClient.get<BudgetWithProgress>(
+					`/budgets/${id}`,
+				);
 				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to fetch budget";
@@ -358,7 +349,6 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 		[isAuthenticated],
 	);
 
-	// Initial fetch
 	useEffect(() => {
 		if (isAuthenticated) {
 			Promise.all([fetchBudgets(), fetchCurrentBudgets(), fetchAlerts()]);
