@@ -125,9 +125,14 @@ class ApiClient {
 
 	async delete<T>(
 		endpoint: string,
-		options?: Omit<RequestOptions, "method" | "body">,
+		body?: any,
+		options?: Omit<RequestOptions, "method">,
 	): Promise<T> {
-		return this.request<T>(endpoint, { ...options, method: "DELETE" });
+		return this.request<T>(endpoint, {
+			...options,
+			method: "DELETE",
+			body,
+		});
 	}
 
 	async patch<T>(
