@@ -1,56 +1,30 @@
 ====================================================================================================
 🚀 UNILOGGER SOURCE CODE DUMP
 ====================================================================================================
-📅 Generated: 19/4/2026, 2:56:23 pm
+📅 Generated: 24/4/2026, 10:06:45 pm
 📁 Root: src/
-📊 Total Files: 16
+📊 Total Files: 5
 ====================================================================================================
 
 📑 TABLE OF CONTENTS
 --------------------------------------------------
-1. 📄 prisma\account.prisma
-2. 📄 prisma\attachment.prisma
-3. 📄 prisma\audit-log.prisma
-4. 📄 prisma\budget.prisma
-5. 📄 prisma\category.prisma
-6. 📄 prisma\enums.prisma
-7. 📄 prisma\export-history.prisma
-8. 📄 prisma\notification.prisma
-9. 📄 prisma\otp-session.prisma
-10. 📄 prisma\resurring-transaction.prisma
-11. 📄 prisma\saving-goal.prisma
-12. 📄 prisma\schema.prisma
-13. 📄 prisma\seed\seed.ts
-14. 📄 prisma\tag.prisma
-15. 📄 prisma\transaction.prisma
-16. 📄 prisma\user.prisma
+1. 📄 components\pages\categories\_components\categories-cards.tsx
+2. 📄 components\pages\categories\_components\categories-header.tsx
+3. 📄 components\pages\categories\_components\categories-table.tsx
+4. 📄 components\pages\categories\_components\category-form-dialog.tsx
+5. 📄 components\pages\categories\index.tsx
 
 ====================================================================================================
 
 📁 FOLDER STRUCTURE
 --------------------------------------------------
 src/
-    ├── 📄 account.prisma
-    ├── 📄 attachment.prisma
-    ├── 📄 audit-log.prisma
-    ├── 📄 budget.prisma
-    ├── 📄 category.prisma
-    ├── 📄 enums.prisma
-    ├── 📄 export-history.prisma
-    ├── 📁 migrations
-    │   ├── 📁 20260418084903_init
-    │   ├── 📁 20260418143413_account_balance_added
-    │   ├── 📁 20260419075758_budget_table_updated
-    ├── 📄 notification.prisma
-    ├── 📄 otp-session.prisma
-    ├── 📄 resurring-transaction.prisma
-    ├── 📄 saving-goal.prisma
-    ├── 📄 schema.prisma
-    ├── 📁 seed
-    │   └── 📄 seed.ts
-    ├── 📄 tag.prisma
-    ├── 📄 transaction.prisma
-    └── 📄 user.prisma
+    ├── 📄 index.tsx
+    └── 📁 _components
+        ├── 📄 categories-cards.tsx
+        ├── 📄 categories-header.tsx
+        ├── 📄 categories-table.tsx
+        └── 📄 category-form-dialog.tsx
 
 ====================================================================================================
 
@@ -58,919 +32,1075 @@ src/
 --------------------------------------------------
 
 ====================================================================================================
-📁 FILE: prisma\account.prisma
+📁 FILE: components\pages\categories\_components\categories-cards.tsx
 ====================================================================================================
 
-// prisma/models/account.prisma (updated)
-
-model Account {
-  id          String      @id @default(cuid())
-  name        String
-  type        AccountType @default(CASH)
-  balance     Float       @default(0)
-  currency    String?
-  isDefault   Boolean     @default(false)
-  color       String?
-  notes       String?
-  
-  // Relationships
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
-  recurringTxns   RecurringTransaction[]
-  balanceHistory  AccountBalanceHistory[] // NEW: Track all balance changes
-  
-  @@index([userId])
-  @@index([isDefault])
-  @@map("accounts")
-}
-
-model AccountBalanceHistory {
-  id          String   @id @default(cuid())
-  accountId   String
-  balance     Float    // New balance after change
-  changeAmount Float   // Positive = added, Negative = subtracted
-  changeType  String   // "DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "TRANSFER"
-  description String?
-  referenceId String?  // Can link to transaction ID or transfer ID
-  createdAt   DateTime @default(now())
-  
-  // Relationships
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  
-  @@index([accountId])
-  @@index([createdAt])
-  @@index([changeType])
-  @@map("account_balance_history")
-}
-
-====================================================================================================
-📁 FILE: prisma\attachment.prisma
-====================================================================================================
-
-// prisma/models/attachment.prisma
-
-model Attachment {
-  id            String   @id @default(cuid())
-  filename      String
-  originalName  String
-  mimeType      String
-  size          Int
-  url           String
-  thumbnailUrl  String?
-  uploadedAt    DateTime @default(now())
-  
-  // Relationships
-  transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([transactionId])
-  @@index([userId])
-  @@map("attachments")
-}
-
-====================================================================================================
-📁 FILE: prisma\audit-log.prisma
-====================================================================================================
-
-// prisma/models/auditLog.prisma
-
-model AuditLog {
-  id          String      @id @default(cuid())
-  action      AuditAction
-  entityType  String
-  entityId    String
-  oldValue    Json?
-  newValue    Json?
-  description String?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime    @default(now())
-  
-  // Relationships
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([entityType, entityId])
-  @@index([createdAt])
-  @@index([action])
-  @@map("audit_logs")
-}
-
-====================================================================================================
-📁 FILE: prisma\budget.prisma
-====================================================================================================
-
-// prisma/models/budget.prisma
-
-model Budget {
-  id             String       @id @default(cuid())
-  amount         Float
-  period         BudgetPeriod @default(MONTHLY)
-  startDate      DateTime     @default(now())
-  endDate        DateTime?
-  alertThreshold Float        @default(80)
-  rollover       Boolean      @default(false)
-  spent          Float        @default(0)
-  remaining      Float        @default(0)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId     String?
-  category       Category?    @relation(fields: [categoryId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  @@unique([userId, categoryId, period, startDate])
-  @@index([userId])
-  @@index([categoryId])
-  @@map("budgets")
-}
-
-====================================================================================================
-📁 FILE: prisma\category.prisma
-====================================================================================================
-
-// prisma/models/category.prisma
-
-model Category {
-  id          String   @id @default(cuid())
-  name        String
-  type        TransactionType @default(EXPENSE)
-  icon        String?
-  color       String?
-  isDefault   Boolean  @default(false)
-  order       Int      @default(0)
-  
-  // Relationships
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets     Budget[]
-  savingsGoals SavingsGoal[]
-  recurringTxns RecurringTransaction[]
-  
-  @@unique([userId, name])
-  @@index([userId])
-  @@map("categories")
-}
-
-====================================================================================================
-📁 FILE: prisma\enums.prisma
-====================================================================================================
-
-// prisma/enums/enums.prisma
-
-// ==================== ENUMS ====================
-
-enum TransactionType {
-  INCOME
-  EXPENSE
-  TRANSFER
-}
-
-enum RecurringFrequency {
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
-  CUSTOM
-}
-
-enum BudgetPeriod {
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
-}
-
-enum SavingsGoalStatus {
-  ACTIVE
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum AccountType {
-  CASH
-  BANK_ACCOUNT
-  SAVINGS_ACCOUNT
-  CREDIT_CARD
-  DIGITAL_WALLET
-  OTHER
-}
-
-enum AuditAction {
-  CREATE
-  UPDATE
-  DELETE
-  EXPORT
-  LOGIN
-  LOGOUT
-  SETTINGS_CHANGE
-  BUDGET_ALERT
-  GOAL_MILESTONE
-}
-
-enum NotificationType {
-  BUDGET_ALERT
-  GOAL_MILESTONE
-  RECURRING_REMINDER
-  SYSTEM
-}
-
-enum NotificationStatus {
-  UNREAD
-  READ
-  ARCHIVED
-}
-
-====================================================================================================
-📁 FILE: prisma\export-history.prisma
-====================================================================================================
-
-// prisma/models/exportHistory.prisma
-
-model ExportHistory {
-  id          String   @id @default(cuid())
-  format      String
-  dateRange   Json
-  filters     Json?
-  fileUrl     String?
-  fileSize    Int?
-  exportedAt  DateTime @default(now())
-  
-  // Relationships
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([exportedAt])
-  @@map("export_history")
-}
-
-====================================================================================================
-📁 FILE: prisma\notification.prisma
-====================================================================================================
-
-// prisma/models/notification.prisma
-
-model Notification {
-  id          String             @id @default(cuid())
-  title       String
-  message     String
-  type        NotificationType
-  status      NotificationStatus @default(UNREAD)
-  metadata    Json?
-  createdAt   DateTime           @default(now())
-  readAt      DateTime?
-  
-  // Relationships
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("notifications")
-}
-
-====================================================================================================
-📁 FILE: prisma\otp-session.prisma
-====================================================================================================
-
-// prisma/models/otpSession.prisma
-
-model OTPSession {
-  id          String   @id @default(cuid())
-  email       String
-  otpCode     String
-  expiresAt   DateTime
-  verifiedAt  DateTime?
-  attempts    Int      @default(0)
-  createdAt   DateTime @default(now())
-  deletedAt   DateTime?
-  
-  @@index([email])
-  @@index([expiresAt])
-  @@index([deletedAt])
-  @@map("otp_sessions")
-}
-
-====================================================================================================
-📁 FILE: prisma\resurring-transaction.prisma
-====================================================================================================
-
-// prisma/models/recurringTransaction.prisma
-
-model RecurringTransaction {
-  id          String             @id @default(cuid())
-  name        String
-  amount      Float
-  type        TransactionType    @default(EXPENSE)
-  frequency   RecurringFrequency @default(MONTHLY)
-  interval    Int                @default(1)
-  startDate   DateTime           @default(now())
-  endDate     DateTime?
-  nextDueDate DateTime
-  isActive    Boolean            @default(true)
-  description String?
-  
-  // Relationships
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?
-  category    Category?          @relation(fields: [categoryId], references: [id])
-  accountId   String?
-  account     Account?           @relation(fields: [accountId], references: [id])
-  transactions Transaction[]
-  
-  @@index([userId])
-  @@index([nextDueDate])
-  @@index([isActive])
-  @@map("recurring_transactions")
-}
-
-====================================================================================================
-📁 FILE: prisma\saving-goal.prisma
-====================================================================================================
-
-// prisma/models/savingsGoal.prisma
-
-model SavingsGoal {
-  id               String            @id @default(cuid())
-  name             String
-  targetAmount     Float
-  currentAmount    Float             @default(0)
-  deadline         DateTime
-  status           SavingsGoalStatus @default(ACTIVE)
-  notes            String?
-  
-  // Computed fields
-  progress         Float             @default(0)
-  daysRemaining    Int               @default(0)
-  
-  // Relationships
-  userId           String
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedCategoryId String?
-  linkedCategory   Category?         @relation(fields: [linkedCategoryId], references: [id])
-  
-  @@index([userId])
-  @@index([status])
-  @@map("savings_goals")
-}
-
-====================================================================================================
-📁 FILE: prisma\schema.prisma
-====================================================================================================
-
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-// ============================================
-// ENUMS
-// ============================================
-// Copy content from enums/enums.prisma
-
-// ============================================
-// MODELS
-// ============================================
-// Copy content from:
-// models/user.prisma
-// models/transaction.prisma
-// models/category.prisma
-// models/budget.prisma
-// models/savingsGoal.prisma
-// models/recurringTransaction.prisma
-// models/account.prisma
-// models/tag.prisma
-// models/attachment.prisma
-// models/auditLog.prisma
-// models/exportHistory.prisma
-// models/otpSession.prisma
-// models/notification.prisma
-
-====================================================================================================
-📁 FILE: prisma\seed\seed.ts
-====================================================================================================
-
-// prisma/seed.ts
+// components/pages/categories/_components/categories-cards.tsx
+"use client";
 
 import {
-	PrismaClient,
-	TransactionType,
-	AccountType,
-	BudgetPeriod,
-	SavingsGoalStatus,
-	RecurringFrequency,
-	type User,
-	type Category,
-	type Tag,
-	type Account,
-} from "@/generated/prisma/client";
+	Edit,
+	Trash2,
+	TrendingDown,
+	TrendingUp,
+	ArrowRightLeft,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getIconByName } from "@/lib/icon-utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/shared/data-card";
+import { CategoryFormDialog } from "./category-form-dialog";
+import type { Category } from "@/lib/category-service/types";
+import type { Pagination as PaginationType } from "@/lib/response-service";
+import { DeleteAlertDialog } from "@/components/shared/delete-alert-dialog";
 
-const prisma = new PrismaClient();
+interface CategoriesCardsProps {
+	categories: Category[];
+	pagination?: PaginationType | null;
+	isLoading?: boolean;
+	onPageChange?: (page: number) => void;
+	onLimitChange?: (limit: number) => void;
+	onDelete: (id: string) => Promise<boolean>;
+}
 
-// ==================== CONFIGURATION ====================
-const CONFIG = {
-	USERS: 3,
-	TRANSACTIONS_PER_USER: 50,
+const typeConfig = {
+	INCOME: { label: "Income", variant: "default" as const, icon: TrendingUp },
+	EXPENSE: {
+		label: "Expense",
+		variant: "destructive" as const,
+		icon: TrendingDown,
+	},
+	TRANSFER: {
+		label: "Transfer",
+		variant: "secondary" as const,
+		icon: ArrowRightLeft,
+	},
 };
 
-// ==================== STATIC DATA ====================
+export function CategoriesCards({
+	categories,
+	pagination,
+	isLoading,
+	onPageChange,
+	onLimitChange,
+	onDelete,
+}: CategoriesCardsProps) {
+	return (
+		<DataCard
+			data={categories}
+			pagination={pagination}
+			isLoading={isLoading}
+			onPageChange={onPageChange}
+			onLimitChange={onLimitChange}
+			emptyMessage="No categories found"
+			emptyDescription="Create your first category to get started."
+			gridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+			renderCard={(category) => {
+				const config = typeConfig[category.type] || typeConfig.EXPENSE;
+				const TypeIcon = config.icon;
+				const CategoryIcon = getIconByName(category.icon);
 
-const FIRST_NAMES = [
-	"John",
-	"Jane",
-	"Mike",
-	"Sarah",
-	"David",
-	"Emma",
-	"Chris",
-	"Lisa",
-];
-const LAST_NAMES = [
-	"Smith",
-	"Johnson",
-	"Williams",
-	"Brown",
-	"Jones",
-	"Garcia",
-	"Miller",
-	"Davis",
-];
+				return (
+					<Card className="group hover:shadow-md transition-shadow">
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between">
+								<div className="flex items-center gap-3">
+									<div
+										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+										style={{
+											backgroundColor: category.color
+												? `${category.color}18`
+												: "#f3f4f6",
+										}}
+									>
+										<CategoryIcon
+											className="h-5 w-5"
+											style={{
+												color:
+													category.color || "#71717a",
+											}}
+										/>
+									</div>
+									<div>
+										<h3 className="font-medium text-sm">
+											{category.name}
+										</h3>
+										<Badge
+											variant={config.variant}
+											className="gap-1 mt-1 text-xs"
+										>
+											<TypeIcon className="h-3 w-3" />
+											{config.label}
+										</Badge>
+									</div>
+								</div>
+								<div className="flex items-center gap-1">
+									{/* Edit Dialog */}
+									<CategoryFormDialog
+										mode="edit"
+										category={category}
+										trigger={
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+											>
+												<Edit className="h-3.5 w-3.5" />
+											</Button>
+										}
+									/>
 
-const EXPENSE_CATEGORIES = [
-	{ name: "Food & Dining", icon: "🍔", color: "#FF5733" },
-	{ name: "Transportation", icon: "🚗", color: "#33FF57" },
-	{ name: "Shopping", icon: "🛍️", color: "#3357FF" },
-	{ name: "Entertainment", icon: "🎬", color: "#FF33F5" },
-	{ name: "Bills & Utilities", icon: "💡", color: "#F5FF33" },
-	{ name: "Healthcare", icon: "🏥", color: "#33FFF5" },
-];
-
-const INCOME_CATEGORIES = [
-	{ name: "Salary", icon: "💰", color: "#33FF83" },
-	{ name: "Freelance", icon: "💻", color: "#8333FF" },
-	{ name: "Investment", icon: "📈", color: "#FF33A8" },
-];
-
-const TAG_NAMES = [
-	"Urgent",
-	"Important",
-	"Work",
-	"Personal",
-	"Family",
-	"Business",
-];
-
-const ACCOUNT_TYPES: AccountType[] = [
-	AccountType.CASH,
-	AccountType.BANK_ACCOUNT,
-	AccountType.SAVINGS_ACCOUNT,
-	AccountType.CREDIT_CARD,
-];
-
-const CURRENCIES = ["USD", "EUR", "GBP"];
-
-// ==================== HELPER FUNCTIONS ====================
-
-function getRandomInt(min: number, max: number): number {
-	return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function getRandomDate(daysBack: number): Date {
-	const date = new Date();
-	date.setDate(date.getDate() - getRandomInt(1, daysBack));
-	return date;
-}
-
-function getRandomAmount(min: number, max: number): number {
-	return Math.round((Math.random() * (max - min) + min) * 100) / 100;
-}
-
-function getRandomElement<T>(array: T[]): T {
-	return array[Math.floor(Math.random() * array.length)];
-}
-
-function getRandomElements<T>(array: T[], count: number): T[] {
-	const shuffled = [...array];
-	for (let i = shuffled.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-	}
-	return shuffled.slice(0, count);
-}
-
-// ==================== MAIN SEED FUNCTION ====================
-
-async function main() {
-	console.log("\n🌱 Starting database seed...");
-	console.log("=".repeat(50));
-
-	// ==================== CLEAN UP ====================
-	console.log("\n🧹 Cleaning up existing data...");
-
-	await prisma.$transaction([
-		prisma.attachment.deleteMany(),
-		prisma.transactionTag.deleteMany(),
-		prisma.transaction.deleteMany(),
-		prisma.accountBalanceHistory.deleteMany(),
-		prisma.recurringTransaction.deleteMany(),
-		prisma.savingsGoal.deleteMany(),
-		prisma.budget.deleteMany(),
-		prisma.account.deleteMany(),
-		prisma.tag.deleteMany(),
-		prisma.category.deleteMany(),
-		prisma.user.deleteMany(),
-	]);
-
-	console.log("✅ Cleanup complete");
-
-	// ==================== CREATE USERS ====================
-	console.log("\n👤 Creating users...");
-
-	const users: User[] = [];
-	for (let i = 0; i < CONFIG.USERS; i++) {
-		const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
-		const lastName = LAST_NAMES[i % LAST_NAMES.length];
-		const user = await prisma.user.create({
-			data: {
-				email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-				passwordHash: "hashed_password_123",
-				name: `${firstName} ${lastName}`,
-				avatar: null,
-				currency: getRandomElement(CURRENCIES),
-				theme: "light",
-				firstDayOfWeek: 0,
-				dateFormat: "MM/DD/YYYY",
-				numberFormat: "1,000.00",
-				emailNotifications: true,
-			},
-		});
-		users.push(user);
-		console.log(`   ✅ Created: ${user.name} (${user.email})`);
-	}
-
-	// ==================== CREATE CATEGORIES ====================
-	console.log("\n📂 Creating categories...");
-
-	const allCategories = new Map<string, Category[]>();
-
-	for (const user of users) {
-		const userCategories: Category[] = [];
-
-		// Create expense categories
-		for (let i = 0; i < EXPENSE_CATEGORIES.length; i++) {
-			const cat = EXPENSE_CATEGORIES[i];
-			const category = await prisma.category.create({
-				data: {
-					name: cat.name,
-					type: TransactionType.EXPENSE,
-					icon: cat.icon,
-					color: cat.color,
-					isDefault: false,
-					order: i,
-					userId: user.id,
-				},
-			});
-			userCategories.push(category);
-		}
-
-		// Create income categories
-		for (let i = 0; i < INCOME_CATEGORIES.length; i++) {
-			const cat = INCOME_CATEGORIES[i];
-			const category = await prisma.category.create({
-				data: {
-					name: cat.name,
-					type: TransactionType.INCOME,
-					icon: cat.icon,
-					color: cat.color,
-					isDefault: false,
-					order: i + 10,
-					userId: user.id,
-				},
-			});
-			userCategories.push(category);
-		}
-
-		allCategories.set(user.id, userCategories);
-		console.log(
-			`   ✅ ${user.name}: ${userCategories.length} categories created`,
-		);
-	}
-
-	// ==================== CREATE TAGS ====================
-	console.log("\n🏷️ Creating tags...");
-
-	const allTags = new Map<string, Tag[]>();
-
-	for (const user of users) {
-		const userTags: Tag[] = [];
-		for (let i = 0; i < TAG_NAMES.length; i++) {
-			const tag = await prisma.tag.create({
-				data: {
-					name: TAG_NAMES[i],
-					color:
-						"#" + Math.floor(Math.random() * 16777215).toString(16),
-					userId: user.id,
-				},
-			});
-			userTags.push(tag);
-		}
-		allTags.set(user.id, userTags);
-		console.log(`   ✅ ${user.name}: ${userTags.length} tags created`);
-	}
-
-	// ==================== CREATE ACCOUNTS ====================
-	console.log("\n💰 Creating accounts...");
-
-	const allAccounts = new Map<string, Account[]>();
-
-	for (const user of users) {
-		const userAccounts: Account[] = [];
-		for (let i = 0; i < ACCOUNT_TYPES.length; i++) {
-			const initialBalance = getRandomAmount(100, 5000);
-			const account = await prisma.account.create({
-				data: {
-					name: `${ACCOUNT_TYPES[i]} Account`,
-					type: ACCOUNT_TYPES[i],
-					balance: initialBalance,
-					currency: user.currency,
-					isDefault: i === 0,
-					color:
-						"#" + Math.floor(Math.random() * 16777215).toString(16),
-					notes: null,
-					userId: user.id,
-				},
-			});
-
-			await prisma.accountBalanceHistory.create({
-				data: {
-					accountId: account.id,
-					balance: initialBalance,
-					changeAmount: initialBalance,
-					changeType: "INITIAL",
-					description: "Initial account balance",
-				},
-			});
-
-			userAccounts.push(account);
-		}
-		allAccounts.set(user.id, userAccounts);
-		console.log(
-			`   ✅ ${user.name}: ${userAccounts.length} accounts created`,
-		);
-	}
-
-	// ==================== CREATE TRANSACTIONS ====================
-	console.log("\n💸 Creating transactions...");
-
-	let totalTransactions = 0;
-
-	for (const user of users) {
-		const userCategories = allCategories.get(user.id) || [];
-		const userAccounts = allAccounts.get(user.id) || [];
-		const userTags = allTags.get(user.id) || [];
-
-		const expenseCategories = userCategories.filter(
-			(c: Category) => c.type === TransactionType.EXPENSE,
-		);
-		const incomeCategories = userCategories.filter(
-			(c: Category) => c.type === TransactionType.INCOME,
-		);
-
-		for (let i = 0; i < CONFIG.TRANSACTIONS_PER_USER; i++) {
-			const isIncome = Math.random() < 0.3;
-			const type = isIncome
-				? TransactionType.INCOME
-				: TransactionType.EXPENSE;
-			const amount = isIncome
-				? getRandomAmount(500, 5000)
-				: getRandomAmount(10, 500);
-			const category = isIncome
-				? getRandomElement(incomeCategories)
-				: getRandomElement(expenseCategories);
-			const account = getRandomElement(userAccounts);
-			const date = getRandomDate(90);
-			const description = isIncome
-				? ["Salary", "Freelance", "Bonus", "Refund"][
-						Math.floor(Math.random() * 4)
-					]
-				: ["Groceries", "Uber", "Netflix", "Shopping", "Restaurant"][
-						Math.floor(Math.random() * 5)
-					];
-
-			const balanceChange =
-				type === TransactionType.INCOME ? amount : -amount;
-
-			const updatedAccount = await prisma.account.update({
-				where: { id: account.id },
-				data: { balance: { increment: balanceChange } },
-			});
-
-			const transaction = await prisma.transaction.create({
-				data: {
-					amount,
-					type,
-					description,
-					date,
-					notes: null,
-					userId: user.id,
-					categoryId: category.id,
-					accountId: account.id,
-				},
-			});
-
-			await prisma.accountBalanceHistory.create({
-				data: {
-					accountId: account.id,
-					balance: updatedAccount.balance,
-					changeAmount: balanceChange,
-					changeType:
-						type === TransactionType.INCOME
-							? "DEPOSIT"
-							: "WITHDRAWAL",
-					description: `Transaction: ${description}`,
-					referenceId: transaction.id,
-				},
-			});
-
-			// Add random tags (0-2 tags per transaction)
-			const numTags = Math.floor(Math.random() * 3);
-			if (numTags > 0 && userTags.length > 0) {
-				const selectedTags = getRandomElements(
-					userTags,
-					Math.min(numTags, userTags.length),
+									{/* Delete Dialog */}
+									{!category.isDefault && (
+										<DeleteAlertDialog
+											title="Delete Category"
+											itemName={category.name}
+											itemType="category"
+											onDelete={() =>
+												onDelete(category.id)
+											}
+											trigger={
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8"
+												>
+													<Trash2 className="h-3.5 w-3.5 text-destructive" />
+												</Button>
+											}
+										/>
+									)}
+								</div>
+							</div>
+							{category.color && (
+								<div className="flex items-center gap-2 mt-3 pt-3 border-t">
+									<div
+										className="h-4 w-4 rounded ring-1 ring-inset ring-black/10"
+										style={{
+											backgroundColor: category.color,
+										}}
+									/>
+									<code className="text-xs text-muted-foreground">
+										{category.color}
+									</code>
+								</div>
+							)}
+						</CardContent>
+					</Card>
 				);
-				for (const tag of selectedTags) {
-					await prisma.transactionTag.create({
-						data: {
-							transactionId: transaction.id,
-							tagId: tag.id,
-						},
-					});
+			}}
+		/>
+	);
+}
+
+
+====================================================================================================
+📁 FILE: components\pages\categories\_components\categories-header.tsx
+====================================================================================================
+
+// components/pages/categories/_components/categories-header.tsx
+
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { CategoryFormDialog } from "./category-form-dialog";
+
+export function CategoriesHeader() {
+	return (
+		<div className="flex items-center justify-between flex-1">
+			<div>
+				<h1 className="text-3xl font-bold tracking-tight">
+					Categories
+				</h1>
+				<p className="text-muted-foreground">
+					Manage your income and expense categories
+				</p>
+			</div>
+			<CategoryFormDialog />
+		</div>
+	);
+}
+
+
+====================================================================================================
+📁 FILE: components\pages\categories\_components\categories-table.tsx
+====================================================================================================
+
+// components/pages/categories/_components/categories-table.tsx
+"use client";
+
+import {
+	DataTable,
+	type Column,
+	type SortConfig,
+} from "@/components/shared/data-table";
+import {
+	Edit,
+	Trash2,
+	TrendingDown,
+	TrendingUp,
+	ArrowRightLeft,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getIconByName } from "@/lib/icon-utils";
+import { CategoryFormDialog } from "./category-form-dialog";
+import type { Category } from "@/lib/category-service/types";
+import type { Pagination as PaginationType } from "@/lib/response-service";
+import { DeleteAlertDialog } from "@/components/shared/delete-alert-dialog";
+
+interface CategoriesTableProps {
+	categories: Category[];
+	pagination?: PaginationType | null;
+	isLoading?: boolean;
+	onPageChange?: (page: number) => void;
+	onLimitChange?: (limit: number) => void;
+	onDelete: (id: string) => Promise<boolean>;
+	// Search & Sort
+	searchValue?: string;
+	onSearchChange?: (value: string) => void;
+	sortConfig?: SortConfig | null;
+	onSortChange?: (sort: SortConfig) => void;
+}
+
+const typeConfig = {
+	INCOME: { label: "Income", variant: "success" as const, icon: TrendingUp },
+	EXPENSE: {
+		label: "Expense",
+		variant: "destructive" as const,
+		icon: TrendingDown,
+	},
+	TRANSFER: {
+		label: "Transfer",
+		variant: "outline" as const,
+		icon: ArrowRightLeft,
+	},
+};
+
+export function CategoriesTable({
+	categories,
+	pagination,
+	isLoading,
+	onPageChange,
+	onLimitChange,
+	onDelete,
+	searchValue = "",
+	onSearchChange,
+	sortConfig,
+	onSortChange,
+}: CategoriesTableProps) {
+	const columns: Column<Category>[] = [
+		{
+			key: "index",
+			header: "#",
+			cell: (_, index) => (
+				<span className="text-xs text-muted-foreground tabular-nums">
+					{((pagination?.page || 1) - 1) * (pagination?.limit || 20) +
+						index +
+						1}
+				</span>
+			),
+			className: "w-12",
+		},
+		{
+			key: "name",
+			header: "Name",
+			sortable: true, // ✅ Sortable
+			cell: (category) => {
+				const Icon = getIconByName(category.icon);
+				return (
+					<div className="flex items-center gap-2.5">
+						<div
+							className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+							style={{
+								backgroundColor: category.color
+									? `${category.color}18`
+									: "transparent",
+							}}
+						>
+							<Icon
+								className="h-3.5 w-3.5"
+								style={{ color: category.color || "#71717a" }}
+							/>
+						</div>
+						<span className="text-sm font-medium">
+							{category.name}
+						</span>
+					</div>
+				);
+			},
+		},
+		{
+			key: "type",
+			header: "Type",
+			sortable: true, // ✅ Sortable
+			cell: (category) => {
+				const config = typeConfig[category.type] || typeConfig.EXPENSE;
+				const TypeIcon = config.icon;
+				return (
+					<Badge
+						variant={config.variant}
+						className={`gap-1 ${
+							config.variant === "destructive"
+								? "text-destructive-foreground"
+								: ""
+						}`}
+					>
+						<TypeIcon className="h-3 w-3" />
+						{config.label}
+					</Badge>
+				);
+			},
+		},
+		{
+			key: "color",
+			header: "Color",
+			cell: (category) =>
+				category.color ? (
+					<div className="flex items-center gap-2">
+						<div
+							className="h-4 w-4 rounded ring-1 ring-inset ring-black/10"
+							style={{ backgroundColor: category.color }}
+						/>
+						<code className="text-xs text-muted-foreground">
+							{category.color}
+						</code>
+					</div>
+				) : (
+					<span className="text-xs text-muted-foreground">—</span>
+				),
+			hideOnMobile: true,
+		},
+		{
+			key: "actions",
+			header: "",
+			cell: (category) => (
+				<div className="flex items-center justify-end gap-1">
+					<CategoryFormDialog
+						mode="edit"
+						category={category}
+						trigger={
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8"
+							>
+								<Edit className="h-3.5 w-3.5" />
+							</Button>
+						}
+						onSuccess={() => onPageChange?.(pagination?.page || 1)}
+					/>
+					{!category.isDefault && (
+						<DeleteAlertDialog
+							title="Delete Category"
+							itemName={category.name}
+							itemType="category"
+							onDelete={() => onDelete(category.id)}
+							onSuccess={() =>
+								onPageChange?.(pagination?.page || 1)
+							}
+							trigger={
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+								>
+									<Trash2 className="h-3.5 w-3.5 text-destructive" />
+								</Button>
+							}
+						/>
+					)}
+				</div>
+			),
+			className: "w-24 text-right",
+		},
+	];
+
+	return (
+		<DataTable
+			data={categories}
+			columns={columns}
+			pagination={pagination}
+			isLoading={isLoading}
+			onPageChange={onPageChange}
+			onLimitChange={onLimitChange}
+			emptyMessage="No categories found"
+			emptyDescription="Create your first category to get started."
+			searchPlaceholder="Search categories..."
+			searchValue={searchValue}
+			onSearchChange={onSearchChange}
+			sortConfig={sortConfig}
+			onSortChange={onSortChange}
+		/>
+	);
+}
+
+
+====================================================================================================
+📁 FILE: components\pages\categories\_components\category-form-dialog.tsx
+====================================================================================================
+
+// components/pages/categories/_components/category-form-dialog.tsx
+"use client";
+
+import * as React from "react";
+import { toast } from "sonner";
+import { Plus, Loader2, Check, ChevronsUpDown } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
+import { useCategories } from "@/components/context/categories-context/categories-context";
+
+import {
+	createCategorySchema,
+	updateCategorySchema,
+} from "@/lib/category-service/validation";
+import type {
+	CreateCategoryInput,
+	UpdateCategoryInput,
+} from "@/lib/category-service/validation";
+import type { Category } from "@/lib/category-service/types";
+import { ZodError } from "zod";
+
+import { ICON_OPTIONS, getIconByName, getIconOption } from "@/lib/icon-utils";
+
+// ============================================
+// TYPES
+// ============================================
+
+type CategoryFormData = CreateCategoryInput;
+
+interface FormErrors {
+	name?: string;
+	type?: string;
+	color?: string;
+	icon?: string;
+}
+
+interface CategoryFormDialogProps {
+	mode?: "create" | "edit";
+	category?: Category | null;
+	trigger?: React.ReactNode;
+	onSuccess?: () => void;
+}
+
+// ============================================
+// FORM COMPONENT
+// ============================================
+
+export function CategoryFormDialog({
+	mode = "create",
+	category = null,
+	trigger,
+	onSuccess,
+}: CategoryFormDialogProps) {
+	const [open, setOpen] = React.useState(false);
+	const [iconSearchOpen, setIconSearchOpen] = React.useState(false);
+	const { createCategory, updateCategory, isLoading } = useCategories();
+
+	const isEditMode = mode === "edit" && category;
+
+	// Form state
+	const [formData, setFormData] = React.useState<CategoryFormData>({
+		name: "",
+		type: "EXPENSE",
+		color: "#FF5733",
+		icon: "",
+		order: 0,
+	});
+	const [errors, setErrors] = React.useState<FormErrors>({});
+
+	// Populate form when editing
+	React.useEffect(() => {
+		if (isEditMode && category) {
+			setFormData({
+				name: category.name,
+				type: category.type,
+				color: category.color || "#71717a",
+				icon: category.icon || "",
+				order: category.order,
+			});
+		}
+	}, [isEditMode, category]);
+
+	// Get selected icon data
+	const selectedIcon = formData.icon ? getIconOption(formData.icon) : null;
+	const SelectedIconComponent = formData.icon
+		? getIconByName(formData.icon)
+		: null;
+
+	// Handle input change
+	function handleChange(field: keyof CategoryFormData, value: string) {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		if (errors[field as keyof FormErrors]) {
+			setErrors((prev) => ({ ...prev, [field]: undefined }));
+		}
+	}
+
+	// Handle type selection
+	function handleTypeChange(value: "INCOME" | "EXPENSE" | "TRANSFER") {
+		setFormData((prev) => ({ ...prev, type: value }));
+		if (errors.type) {
+			setErrors((prev) => ({ ...prev, type: undefined }));
+		}
+	}
+
+	// Handle icon selection
+	function handleIconSelect(iconName: string) {
+		setFormData((prev) => ({ ...prev, icon: iconName }));
+		setIconSearchOpen(false);
+		if (errors.icon) {
+			setErrors((prev) => ({ ...prev, icon: undefined }));
+		}
+	}
+
+	// Validate form
+	function validateForm(): boolean {
+		try {
+			if (isEditMode) {
+				updateCategorySchema.parse(formData);
+			} else {
+				createCategorySchema.parse(formData);
+			}
+			setErrors({});
+			return true;
+		} catch (error) {
+			if (error instanceof ZodError) {
+				const fieldErrors: FormErrors = {};
+				for (const issue of error.issues) {
+					const field = issue.path[0] as keyof FormErrors;
+					if (field && !fieldErrors[field]) {
+						fieldErrors[field] = issue.message;
+					}
 				}
+				setErrors(fieldErrors);
+			}
+			return false;
+		}
+	}
+
+	// Handle submit
+	async function handleSubmit(e: React.FormEvent) {
+		e.preventDefault();
+
+		if (!validateForm()) return;
+
+		let result: Category | null = null;
+
+		if (isEditMode && category) {
+			result = await updateCategory(
+				category.id,
+				formData as UpdateCategoryInput,
+			);
+		} else {
+			result = await createCategory(formData);
+		}
+
+		if (result) {
+			toast.success(
+				isEditMode
+					? `Category "${result.name}" updated successfully`
+					: `Category "${result.name}" created successfully`,
+			);
+			resetForm();
+			setOpen(false);
+			onSuccess?.();
+		}
+	}
+
+	// Reset form
+	function resetForm() {
+		setFormData({
+			name: "",
+			type: "EXPENSE",
+			color: "#FF5733",
+			icon: "",
+			order: 0,
+		});
+		setErrors({});
+	}
+
+	// Handle cancel
+	function handleCancel() {
+		resetForm();
+		setOpen(false);
+	}
+
+	const typeOptions = [
+		{ value: "INCOME" as const, label: "Income" },
+		{ value: "EXPENSE" as const, label: "Expense" },
+		{ value: "TRANSFER" as const, label: "Transfer" },
+	];
+
+	const defaultTrigger = isEditMode ? (
+		<Button variant="ghost" size="icon" className="h-8 w-8">
+			<Plus className="h-4 w-4" />
+		</Button>
+	) : (
+		<Button>
+			<Plus className="h-4 w-4 mr-2" />
+			New Category
+		</Button>
+	);
+
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>
+						{isEditMode ? "Edit Category" : "Create Category"}
+					</DialogTitle>
+					<DialogDescription>
+						{isEditMode
+							? "Update the category details."
+							: "Add a new category to organize your transactions."}
+					</DialogDescription>
+				</DialogHeader>
+				<form id="category-form" onSubmit={handleSubmit}>
+					<FieldGroup>
+						{/* Name Field */}
+						<Field data-invalid={!!errors.name}>
+							<FieldLabel htmlFor="category-name">
+								Name
+							</FieldLabel>
+							<Input
+								id="category-name"
+								value={formData.name}
+								onChange={(e) =>
+									handleChange("name", e.target.value)
+								}
+								placeholder="e.g. Food & Dining"
+								aria-invalid={!!errors.name}
+								autoComplete="off"
+							/>
+							<FieldDescription>
+								Choose a clear and descriptive name.
+							</FieldDescription>
+							{errors.name && (
+								<FieldError
+									errors={[
+										{ message: errors.name } as {
+											message: string;
+										},
+									]}
+								/>
+							)}
+						</Field>
+
+						{/* Type Field */}
+						<Field data-invalid={!!errors.type}>
+							<FieldLabel>Type</FieldLabel>
+							<div className="flex gap-3">
+								{typeOptions.map(({ value, label }) => (
+									<Label
+										key={value}
+										className={`flex items-center gap-2 px-4 py-2 rounded-md border cursor-pointer transition-colors ${
+											formData.type === value
+												? "bg-primary text-primary-foreground border-primary"
+												: "bg-background hover:bg-muted"
+										}`}
+									>
+										<input
+											type="radio"
+											className="sr-only"
+											name="category-type"
+											checked={formData.type === value}
+											onChange={() =>
+												handleTypeChange(value)
+											}
+										/>
+										{label}
+									</Label>
+								))}
+							</div>
+							<FieldDescription>
+								Select the transaction type for this category.
+							</FieldDescription>
+							{errors.type && (
+								<FieldError
+									errors={[
+										{ message: errors.type } as {
+											message: string;
+										},
+									]}
+								/>
+							)}
+						</Field>
+
+						{/* Color Field */}
+						<Field data-invalid={!!errors.color}>
+							<FieldLabel htmlFor="category-color">
+								Color (optional)
+							</FieldLabel>
+							<div className="flex items-center gap-3">
+								<div className="relative">
+									<div
+										className="h-10 w-10 rounded-md border cursor-pointer"
+										style={{
+											backgroundColor:
+												formData.color || "#FF5733",
+										}}
+										onClick={() =>
+											document
+												.getElementById(
+													"category-color",
+												)
+												?.click()
+										}
+									/>
+									<input
+										id="category-color"
+										type="color"
+										value={formData.color || "#FF5733"}
+										onChange={(e) =>
+											handleChange(
+												"color",
+												e.target.value,
+											)
+										}
+										className="absolute inset-0 opacity-0 cursor-pointer"
+										aria-invalid={!!errors.color}
+									/>
+								</div>
+								<Input
+									value={formData.color || ""}
+									onChange={(e) =>
+										handleChange("color", e.target.value)
+									}
+									placeholder="#FF5733"
+									className="flex-1 font-mono"
+									aria-invalid={!!errors.color}
+									autoComplete="off"
+								/>
+							</div>
+							<FieldDescription>
+								Pick a color or enter a hex code.
+							</FieldDescription>
+							{errors.color && (
+								<FieldError
+									errors={[
+										{ message: errors.color } as {
+											message: string;
+										},
+									]}
+								/>
+							)}
+						</Field>
+
+						{/* Icon Field */}
+						<Field data-invalid={!!errors.icon}>
+							<FieldLabel>Icon (optional)</FieldLabel>
+							<Popover
+								open={iconSearchOpen}
+								onOpenChange={setIconSearchOpen}
+							>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										role="combobox"
+										aria-expanded={iconSearchOpen}
+										className="w-full justify-between"
+									>
+										{selectedIcon ? (
+											<span className="flex items-center gap-2">
+												{SelectedIconComponent && (
+													<SelectedIconComponent className="h-4 w-4" />
+												)}
+												{selectedIcon.label}
+											</span>
+										) : (
+											<span className="text-muted-foreground">
+												Select an icon...
+											</span>
+										)}
+										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent
+									className="w-[--radix-popover-trigger-width] p-0"
+									align="start"
+								>
+									<Command>
+										<CommandInput placeholder="Search icons..." />
+										<CommandList>
+											<CommandEmpty>
+												No icon found.
+											</CommandEmpty>
+											<CommandGroup className="overflow-auto">
+												{ICON_OPTIONS.map((icon) => {
+													const IconComponent =
+														getIconByName(
+															icon.value,
+														);
+													return (
+														<CommandItem
+															key={icon.value}
+															value={icon.value}
+															className={`!bg-transparent hover:!bg-secondary ${icon.value===selectedIcon?.value && "!bg-secondary"}`}
+															onSelect={() =>
+																handleIconSelect(
+																	icon.value,
+																)
+															}
+														>
+															<IconComponent className="h-4 w-4 mr-2" />
+															{icon.label}
+															{formData.icon ===
+																icon.value && (
+																<Check className="ml-auto h-4 w-4" />
+															)}
+														</CommandItem>
+													);
+												})}
+											</CommandGroup>
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
+							<FieldDescription>
+								Choose an icon to represent this category.
+							</FieldDescription>
+							{errors.icon && (
+								<FieldError
+									errors={[
+										{ message: errors.icon } as {
+											message: string;
+										},
+									]}
+								/>
+							)}
+						</Field>
+					</FieldGroup>
+				</form>
+				<DialogFooter>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleCancel}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						form="category-form"
+						disabled={isLoading}
+					>
+						{isLoading && (
+							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+						)}
+						{isEditMode ? "Save Changes" : "Create Category"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+
+====================================================================================================
+📁 FILE: components\pages\categories\index.tsx
+====================================================================================================
+
+// components/pages/categories/index.tsx
+"use client";
+
+import { toast } from "sonner";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { LayoutGrid, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CategoriesTable } from "./_components/categories-table";
+import { CategoriesCards } from "./_components/categories-cards";
+import { CategoriesHeader } from "./_components/categories-header";
+import { useTheme, IViewMode } from "@/components/context/theme-context";
+import { useCategories } from "@/components/context/categories-context/categories-context";
+import { SortConfig } from "@/components/shared/data-table";
+
+export function CategoriesPage() {
+	const {
+		categories,
+		pagination,
+		isLoading,
+		error,
+		fetchCategories,
+		deleteCategory,
+		clearError,
+	} = useCategories();
+
+	const { viewMode, setViewMode } = useTheme();
+	const [isFirstLoad, setIsFirstLoad] = useState(true);
+
+	// Search & Sort state
+	const [search, setSearch] = useState("");
+	const [sort, setSort] = useState<SortConfig | null>(null);
+
+	// Debounce timer for search
+	const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Initial fetch
+	useEffect(() => {
+		fetchCategories({ page: 1, limit: 20 }).finally(() => {
+			setIsFirstLoad(false);
+		});
+	}, []);
+
+	// Error handling
+	useEffect(() => {
+		if (error) {
+			toast.error(error);
+			clearError();
+		}
+	}, [error, clearError]);
+
+	// Handle search with debounce
+	const handleSearchChange = useCallback(
+		(value: string) => {
+			setSearch(value);
+
+			if (debounceRef.current) {
+				clearTimeout(debounceRef.current);
 			}
 
-			totalTransactions++;
-		}
-		console.log(
-			`   ✅ ${user.name}: ${CONFIG.TRANSACTIONS_PER_USER} transactions created`,
-		);
-	}
-	console.log(`   📊 Total transactions: ${totalTransactions}`);
+			debounceRef.current = setTimeout(() => {
+				fetchCategories({
+					page: 1,
+					limit: pagination?.limit || 20,
+					search: value || undefined,
+				});
+			}, 300);
+		},
+		[fetchCategories, pagination?.limit],
+	);
 
-	// ==================== FINAL SUMMARY ====================
-	console.log("\n" + "=".repeat(50));
-	console.log("📊 SEED COMPLETE SUMMARY");
-	console.log("=".repeat(50));
-	console.log(`👤 Users: ${await prisma.user.count()}`);
-	console.log(`📂 Categories: ${await prisma.category.count()}`);
-	console.log(`🏷️ Tags: ${await prisma.tag.count()}`);
-	console.log(`💰 Accounts: ${await prisma.account.count()}`);
-	console.log(`💸 Transactions: ${await prisma.transaction.count()}`);
-	console.log(`🔗 Transaction Tags: ${await prisma.transactionTag.count()}`);
-	console.log("=".repeat(50));
+	// Handle sort change
+	const handleSortChange = useCallback(
+		(newSort: SortConfig) => {
+			setSort(newSort);
+			fetchCategories({
+				page: 1,
+				limit: pagination?.limit || 20,
+				search: search || undefined,
+			});
+		},
+		[fetchCategories, pagination?.limit, search],
+	);
 
-	console.log("\n🔑 Test Users:");
-	console.log("-".repeat(50));
-	for (const user of users) {
-		console.log(`   📧 ${user.email}`);
-		console.log(`   🆔 User ID: ${user.id}`);
-		console.log("");
-	}
+	// Handle page change
+	const handlePageChange = useCallback(
+		(page: number) => {
+			fetchCategories({
+				page,
+				limit: pagination?.limit || 20,
+				search: search || undefined,
+			});
+		},
+		[fetchCategories, pagination?.limit, search],
+	);
 
-	console.log("\n✅ Seeding completed successfully!");
+	// Handle limit change
+	const handleLimitChange = useCallback(
+		(limit: number) => {
+			fetchCategories({
+				page: 1,
+				limit,
+				search: search || undefined,
+			});
+		},
+		[fetchCategories, search],
+	);
+
+	// Cleanup debounce on unmount
+	useEffect(() => {
+		return () => {
+			if (debounceRef.current) {
+				clearTimeout(debounceRef.current);
+			}
+		};
+	}, []);
+
+	const commonProps = {
+		categories,
+		pagination: pagination ?? null,
+		// ✅ Built-in skeleton on first load, no spinner on subsequent loads
+		isLoading: isFirstLoad && isLoading,
+		onDelete: deleteCategory,
+		// Search
+		searchValue: search,
+		onSearchChange: handleSearchChange,
+		// Sort
+		sortConfig: sort,
+		onSortChange: handleSortChange,
+		// Pagination
+		onPageChange: handlePageChange,
+		onLimitChange: handleLimitChange,
+	};
+
+	return (
+		<div className="container mx-auto py-6 space-y-6">
+			<div className="flex items-center justify-between">
+				<CategoriesHeader />
+				{/* View Toggle */}
+				<div className="flex items-center gap-1 border rounded-md p-1">
+					<Button
+						variant={
+							viewMode === IViewMode.TABLE ? "secondary" : "ghost"
+						}
+						size="icon"
+						className="h-8 w-8"
+						onClick={() => setViewMode(IViewMode.TABLE)}
+					>
+						<List className="h-4 w-4" />
+					</Button>
+					<Button
+						variant={
+							viewMode === IViewMode.GRID ? "secondary" : "ghost"
+						}
+						size="icon"
+						className="h-8 w-8"
+						onClick={() => setViewMode(IViewMode.GRID)}
+					>
+						<LayoutGrid className="h-4 w-4" />
+					</Button>
+				</div>
+			</div>
+
+			{viewMode === IViewMode.TABLE ? (
+				<CategoriesTable {...commonProps} />
+			) : (
+				<CategoriesCards {...commonProps} />
+			)}
+		</div>
+	);
 }
 
-main()
-	.catch((e) => {
-		console.error("\n❌ Seeding failed:", e);
-		process.exit(1);
-	})
-	.finally(async () => {
-		await prisma.$disconnect();
-	});
-
-
-====================================================================================================
-📁 FILE: prisma\tag.prisma
-====================================================================================================
-
-// prisma/models/tag.prisma
-
-model Tag {
-  id          String   @id @default(cuid())
-  name        String
-  color       String?
-  
-  // Relationships
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions TransactionTag[]
-  
-  @@unique([userId, name])
-  @@index([userId])
-  @@map("tags")
-}
-
-====================================================================================================
-📁 FILE: prisma\transaction.prisma
-====================================================================================================
-
-// prisma/models/transaction.prisma
-
-model Transaction {
-  id              String          @id @default(cuid())
-  amount          Float
-  type            TransactionType @default(EXPENSE)
-  description     String?
-  date            DateTime        @default(now())
-  notes           String?
-  
-  // Relationships
-  userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId      String?
-  category        Category?       @relation(fields: [categoryId], references: [id])
-  accountId       String?
-  account         Account?        @relation(fields: [accountId], references: [id])
-  recurringTxnId  String?
-  recurringTxn    RecurringTransaction? @relation(fields: [recurringTxnId], references: [id])
-  attachments     Attachment[]
-  tags            TransactionTag[]
-  
-  // Indexes
-  @@index([userId])
-  @@index([date])
-  @@index([categoryId])
-  @@index([accountId])
-  @@index([type])
-  @@map("transactions")
-}
-
-// Junction table for Transaction-Tag many-to-many
-model TransactionTag {
-  transactionId String
-  tagId         String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
-  @@id([transactionId, tagId])
-  @@map("transaction_tags")
-}
-
-====================================================================================================
-📁 FILE: prisma\user.prisma
-====================================================================================================
-
-// prisma/models/user.prisma
-
-model User {
-  id                 String               @id @default(cuid())
-  email              String               @unique
-  passwordHash       String
-  name               String
-  avatar             String?
-  currency           String               @default("USD")
-  theme              String               @default("light")
-  firstDayOfWeek     Int                  @default(0) // 0=Sunday, 1=Monday
-  dateFormat         String               @default("MM/DD/YYYY")
-  numberFormat       String               @default("1,000.00")
-  emailNotifications Boolean              @default(true)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  
-  // Relationships
-  transactions        Transaction[]
-  categories          Category[]
-  budgets             Budget[]
-  savingsGoals        SavingsGoal[]
-  recurringTxns       RecurringTransaction[]
-  accounts            Account[]
-  tags                Tag[]
-  attachments         Attachment[]
-  auditLogs           AuditLog[]
-  exportHistory       ExportHistory[]
-  notifications       Notification[]      // ← ADD THIS LINE
-  
-  @@map("users")
-}
 

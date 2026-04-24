@@ -60,6 +60,12 @@ export async function getAllTags(
 		prisma.tag.count({ where }),
 		prisma.tag.findMany({
 			where,
+			select: {
+				id: true,
+				name: true,
+				color: true,
+				userId: true,
+			},
 			skip,
 			take: limit,
 			orderBy,
@@ -288,23 +294,39 @@ export async function getPopularTags(
 
 	const validatedParams = validateGetPopularTagsParams(params);
 
-	const popularTags = await prisma.$queryRaw`
-    SELECT 
-      t.id, 
-      t.name, 
-      t.color,
-      COUNT(tt.transactionId) as transactionCount
-    FROM tags t
-    JOIN transaction_tags tt ON t.id = tt.tagId
-    WHERE t.userId = ${userId}
-    GROUP BY t.id, t.name, t.color
-    ORDER BY transactionCount DESC
-    LIMIT ${validatedParams.limit}
-  `;
-
-	logger.info("Popular tags fetched successfully", {
-		count: (popularTags as any[]).length,
+	// Get tags with their transaction counts using Prisma's groupBy and relations
+	const popularTags = await prisma.tag.findMany({
+		where: {
+			userId: userId,
+		},
+		select: {
+			id: true,
+			name: true,
+			color: true,
+			transactions: {
+				select: {
+					transactionId: true,
+				},
+			},
+		},
 	});
 
-	return popularTags as PopularTag[];
+	// Transform the data to add transactionCount
+	const result: PopularTag[] = popularTags
+		.map((tag) => ({
+			id: tag.id,
+			name: tag.name,
+			color: tag.color,
+			transactionCount: tag.transactions.length,
+		}))
+		// Sort by transactionCount descending
+		.sort((a, b) => b.transactionCount - a.transactionCount)
+		// Limit the results
+		.slice(0, validatedParams.limit);
+
+	logger.info("Popular tags fetched successfully", {
+		count: result.length,
+	});
+
+	return result;
 }

@@ -12,16 +12,20 @@ model RecurringTransaction {
   nextDueDate DateTime
   isActive    Boolean            @default(true)
   description String?
-  
+
   // Relationships
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  String?
-  category    Category?          @relation(fields: [categoryId], references: [id])
-  accountId   String?
-  account     Account?           @relation(fields: [accountId], references: [id])
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category?     @relation(fields: [categoryId], references: [id])
+  accountId    String?
+  account      Account?      @relation(fields: [accountId], references: [id])
   transactions Transaction[]
-  
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([userId])
   @@index([nextDueDate])
   @@index([isActive])

@@ -10,8 +10,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-	Loader2,
 	Inbox,
 	Search,
 	ArrowUpDown,
@@ -70,6 +70,7 @@ interface DataTableProps<T> {
 	onLimitChange?: (limit: number) => void;
 	showPagination?: boolean;
 	pageSizeOptions?: number[];
+	skeletonRowCount?: number;
 
 	// Filter/Search
 	searchPlaceholder?: string;
@@ -100,6 +101,7 @@ export function DataTable<T extends { id: string }>({
 	onLimitChange,
 	showPagination = true,
 	pageSizeOptions = [5, 10, 20, 50, 100],
+	skeletonRowCount = 5,
 	searchPlaceholder = "Search...",
 	searchValue = "",
 	onSearchChange,
@@ -141,10 +143,60 @@ export function DataTable<T extends { id: string }>({
 				</div>
 			)}
 
-			{/* Loading state */}
+			{/* Skeleton Loading State */}
 			{isLoading && data.length === 0 ? (
-				<div className="flex items-center justify-center py-20">
-					<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+				<div className="overflow-x-auto">
+					<Table>
+						<TableHeader>
+							<TableRow className="bg-muted/30 border-b">
+								{columns.map((column) => (
+									<TableHead
+										key={column.key}
+										className={`${
+											column.hideOnMobile
+												? "hidden md:table-cell"
+												: ""
+										} ${column.headerClassName || ""}`}
+									>
+										<Skeleton className="h-3 w-16" />
+									</TableHead>
+								))}
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{Array.from({ length: skeletonRowCount }).map(
+								(_, rowIndex) => (
+									<TableRow
+										key={`skeleton-row-${rowIndex}`}
+										className="border-b last:border-0"
+									>
+										{columns.map((column, colIndex) => (
+											<TableCell
+												key={`skeleton-cell-${rowIndex}-${colIndex}`}
+												className={`${
+													column.hideOnMobile
+														? "hidden md:table-cell"
+														: ""
+												} ${column.className || ""}`}
+											>
+												<Skeleton
+													className={`h-4 ${
+														colIndex === 0
+															? "w-6"
+															: colIndex ===
+																  columns.length -
+																		1
+																? "w-16 ml-auto"
+																: "w-full max-w-[120px]"
+													}`}
+												/>
+											</TableCell>
+										))}
+									</TableRow>
+								),
+							)}
+						</TableBody>
+					</Table>
 				</div>
 			) : !data || data.length === 0 ? (
 				/* Empty state */

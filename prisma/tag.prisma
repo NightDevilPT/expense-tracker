@@ -1,15 +1,19 @@
 // prisma/models/tag.prisma
 
 model Tag {
-  id          String   @id @default(cuid())
-  name        String
-  color       String?
-  
+  id    String  @id @default(cuid())
+  name  String
+  color String?
+
   // Relationships
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions TransactionTag[]
-  
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@unique([userId, name])
   @@index([userId])
   @@map("tags")

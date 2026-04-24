@@ -14,7 +14,8 @@ export function getOpenApiSpec(): OpenAPIV3.Document {
 		info: {
 			title: "API Documentation",
 			version: "1.0.0",
-			description: "Complete API documentation with all available endpoints",
+			description:
+				"Complete API documentation with all available endpoints",
 			contact: {
 				name: "API Support",
 				email: "support@example.com",
@@ -33,13 +34,14 @@ export function getOpenApiSpec(): OpenAPIV3.Document {
 			securitySchemes: {
 				accessToken: {
 					type: "apiKey",
-					in: "cookie",      // ✅ Keep as cookie
+					in: "cookie", // ✅ Keep as cookie
 					name: "accessToken",
-					description: "Enter the JWT access token value (from login response or browser cookies)",
+					description:
+						"Enter the JWT access token value (from login response or browser cookies)",
 				},
 				refreshToken: {
 					type: "apiKey",
-					in: "cookie",      // ✅ Keep as cookie
+					in: "cookie", // ✅ Keep as cookie
 					name: "refreshToken",
 					description: "Enter the JWT refresh token value",
 				},
@@ -72,7 +74,6 @@ export function getOpenApiStats() {
 			).length;
 		}
 	});
-	console.log(spec,'CONSOLING HHHHH')
 
 	return {
 		totalPaths: pathCount,

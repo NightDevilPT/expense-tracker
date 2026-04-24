@@ -1,25 +1,29 @@
 // prisma/models/transaction.prisma
 
 model Transaction {
-  id              String          @id @default(cuid())
-  amount          Float
-  type            TransactionType @default(EXPENSE)
-  description     String?
-  date            DateTime        @default(now())
-  notes           String?
-  
+  id          String          @id @default(cuid())
+  amount      Float
+  type        TransactionType @default(EXPENSE)
+  description String?
+  date        DateTime        @default(now())
+  notes       String?
+
   // Relationships
-  userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId      String?
-  category        Category?       @relation(fields: [categoryId], references: [id])
-  accountId       String?
-  account         Account?        @relation(fields: [accountId], references: [id])
-  recurringTxnId  String?
-  recurringTxn    RecurringTransaction? @relation(fields: [recurringTxnId], references: [id])
-  attachments     Attachment[]
-  tags            TransactionTag[]
-  
+  userId         String
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       Category?             @relation(fields: [categoryId], references: [id])
+  accountId      String?
+  account        Account?              @relation(fields: [accountId], references: [id])
+  recurringTxnId String?
+  recurringTxn   RecurringTransaction? @relation(fields: [recurringTxnId], references: [id])
+  attachments    Attachment[]
+  tags           TransactionTag[]
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   // Indexes
   @@index([userId])
   @@index([date])
@@ -35,7 +39,7 @@ model TransactionTag {
   tagId         String
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
+
   @@id([transactionId, tagId])
   @@map("transaction_tags")
 }

@@ -1,19 +1,19 @@
 // prisma/models/notification.prisma
 
 model Notification {
-  id          String             @id @default(cuid())
-  title       String
-  message     String
-  type        NotificationType
-  status      NotificationStatus @default(UNREAD)
-  metadata    Json?
-  createdAt   DateTime           @default(now())
-  readAt      DateTime?
-  
+  id        String             @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  metadata  Json?
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+
   // Relationships
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([status])
   @@index([createdAt])

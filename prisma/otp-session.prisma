@@ -1,15 +1,15 @@
 // prisma/models/otpSession.prisma
 
 model OTPSession {
-  id          String   @id @default(cuid())
-  email       String
-  otpCode     String
-  expiresAt   DateTime
-  verifiedAt  DateTime?
-  attempts    Int      @default(0)
-  createdAt   DateTime @default(now())
-  deletedAt   DateTime?
-  
+  id         String    @id @default(cuid())
+  email      String
+  otpCode    String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
   @@index([email])
   @@index([expiresAt])
   @@index([deletedAt])

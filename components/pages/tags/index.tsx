@@ -1,47 +1,43 @@
-// components/pages/categories/index.tsx
+// components/pages/tags/index.tsx
 "use client";
 
-import { toast } from "sonner";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CategoriesTable } from "./_components/categories-table";
-import { CategoriesCards } from "./_components/categories-cards";
-import { CategoriesHeader } from "./_components/categories-header";
+import { TagsTable } from "./_components/tags-table";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
-import { useCategories } from "@/components/context/categories-context/categories-context";
-import { SortConfig } from "@/components/shared/data-table";
+import { useTags } from "@/components/context/tags-context/tags-context";
+import type { SortConfig } from "@/components/shared/data-table";
+import { TagsHeader } from "./_components/tags-header";
+import { TagsCards } from "./_components/tags-cards";
 import ToggleView from "@/components/shared/toggle-view";
 
-export function CategoriesPage() {
+export function TagsPage() {
 	const {
-		categories,
+		tags,
 		pagination,
 		isLoading,
 		error,
-		fetchCategories,
-		deleteCategory,
+		fetchTags,
+		deleteTag,
 		clearError,
-	} = useCategories();
+	} = useTags();
 
 	const { viewMode, setViewMode } = useTheme();
 	const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-	// Search & Sort state
+	// Search & Sort state — managed HERE, not in context
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortConfig | null>(null);
-
-	// Debounce timer for search
 	const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Initial fetch
 	useEffect(() => {
-		fetchCategories({ page: 1, limit: 20 }).finally(() => {
-			setIsFirstLoad(false);
-		});
+		fetchTags({ page: 1, limit: 20 }).finally(() => setIsFirstLoad(false));
 	}, []);
 
-	// Error handling
+	// Toast errors
 	useEffect(() => {
 		if (error) {
 			toast.error(error);
@@ -49,101 +45,103 @@ export function CategoriesPage() {
 		}
 	}, [error, clearError]);
 
-	// Handle search with debounce
+	// Debounced search (300ms)
 	const handleSearchChange = useCallback(
 		(value: string) => {
 			setSearch(value);
-
-			if (debounceRef.current) {
-				clearTimeout(debounceRef.current);
-			}
-
+			if (debounceRef.current) clearTimeout(debounceRef.current);
 			debounceRef.current = setTimeout(() => {
-				fetchCategories({
+				fetchTags({
 					page: 1,
 					limit: pagination?.limit || 20,
 					search: value || undefined,
 				});
 			}, 300);
 		},
-		[fetchCategories, pagination?.limit],
+		[fetchTags, pagination?.limit],
 	);
 
-	// Handle sort change
+	// Sort change
 	const handleSortChange = useCallback(
 		(newSort: SortConfig) => {
 			setSort(newSort);
-			fetchCategories({
+			fetchTags({
 				page: 1,
 				limit: pagination?.limit || 20,
 				search: search || undefined,
+				sortBy: newSort.key as
+					| "name"
+					| "transactionCount"
+					| "createdAt",
+				sortOrder: newSort.direction,
 			});
 		},
-		[fetchCategories, pagination?.limit, search],
+		[fetchTags, pagination?.limit, search],
 	);
 
-	// Handle page change
+	// Page change
 	const handlePageChange = useCallback(
 		(page: number) => {
-			fetchCategories({
+			fetchTags({
 				page,
 				limit: pagination?.limit || 20,
 				search: search || undefined,
+				sortBy: sort?.key as "name" | "transactionCount" | "createdAt",
+				sortOrder: sort?.direction,
 			});
 		},
-		[fetchCategories, pagination?.limit, search],
+		[fetchTags, pagination?.limit, search, sort],
 	);
 
-	// Handle limit change
+	// Limit change
 	const handleLimitChange = useCallback(
 		(limit: number) => {
-			fetchCategories({
+			fetchTags({
 				page: 1,
 				limit,
 				search: search || undefined,
+				sortBy: sort?.key as "name" | "transactionCount" | "createdAt",
+				sortOrder: sort?.direction,
 			});
 		},
-		[fetchCategories, search],
+		[fetchTags, search, sort],
 	);
 
 	// Cleanup debounce on unmount
 	useEffect(() => {
 		return () => {
-			if (debounceRef.current) {
-				clearTimeout(debounceRef.current);
-			}
+			if (debounceRef.current) clearTimeout(debounceRef.current);
 		};
 	}, []);
 
+	// Common props passed to BOTH table and cards
 	const commonProps = {
-		categories,
+		items: tags,
 		pagination: pagination ?? null,
-		// ✅ Built-in skeleton on first load, no spinner on subsequent loads
-		isLoading: isFirstLoad && isLoading,
-		onDelete: deleteCategory,
-		// Search
+		isLoading: isLoading, // Skeletons only on first load
+		onDelete: deleteTag,
 		searchValue: search,
 		onSearchChange: handleSearchChange,
-		// Sort
 		sortConfig: sort,
 		onSortChange: handleSortChange,
-		// Pagination
 		onPageChange: handlePageChange,
 		onLimitChange: handleLimitChange,
 	};
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="space-y-6">
 			<div className="flex items-center justify-between">
-				<CategoriesHeader />
+				<TagsHeader />
 				<ToggleView />
 			</div>
 
-			{viewMode === IViewMode.TABLE ? (
-				<CategoriesTable {...commonProps} />
-			) : (
-				<CategoriesCards {...commonProps} />
-			)}
+			<div className="px-1">
+				{viewMode === IViewMode.TABLE ? (
+					<TagsTable {...commonProps} />
+				) : (
+					<TagsCards {...commonProps} />
+				)}
+			</div>
 		</div>
 	);
 }

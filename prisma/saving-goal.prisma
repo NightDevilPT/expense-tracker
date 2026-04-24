@@ -1,24 +1,28 @@
 // prisma/models/savingsGoal.prisma
 
 model SavingsGoal {
-  id               String            @id @default(cuid())
-  name             String
-  targetAmount     Float
-  currentAmount    Float             @default(0)
-  deadline         DateTime
-  status           SavingsGoalStatus @default(ACTIVE)
-  notes            String?
-  
+  id            String            @id @default(cuid())
+  name          String
+  targetAmount  Float
+  currentAmount Float             @default(0)
+  deadline      DateTime
+  status        SavingsGoalStatus @default(ACTIVE)
+  notes         String?
+
   // Computed fields
-  progress         Float             @default(0)
-  daysRemaining    Int               @default(0)
-  
+  progress      Float @default(0)
+  daysRemaining Int   @default(0)
+
   // Relationships
   userId           String
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   linkedCategoryId String?
-  linkedCategory   Category?         @relation(fields: [linkedCategoryId], references: [id])
-  
+  linkedCategory   Category? @relation(fields: [linkedCategoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([userId])
   @@index([status])
   @@map("savings_goals")

@@ -14,8 +14,9 @@ model Budget {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId     String?
   category       Category?    @relation(fields: [categoryId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  aucreatedAt    DateTime     @default(now())
+  // To (this tells Prisma to handle it tomatically):
+  updatedAt      DateTime     @default(now()) @updatedAt
 
   @@unique([userId, categoryId, period, startDate])
   @@index([userId])

@@ -1,18 +1,20 @@
 // prisma/models/exportHistory.prisma
 
 model ExportHistory {
-  id          String   @id @default(cuid())
-  format      String
-  dateRange   Json
-  filters     Json?
-  fileUrl     String?
-  fileSize    Int?
-  exportedAt  DateTime @default(now())
-  
+  id         String   @id @default(cuid())
+  format     String
+  dateRange  Json
+  filters    Json?
+  fileUrl    String?
+  fileSize   Int?
+  exportedAt DateTime @default(now())
+
   // Relationships
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([exportedAt])
   @@map("export_history")

@@ -11,11 +11,11 @@ model AuditLog {
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime    @default(now())
-  
+
   // Relationships
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])

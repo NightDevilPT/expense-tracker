@@ -1,40 +1,44 @@
 // prisma/models/account.prisma (updated)
 
 model Account {
-  id          String      @id @default(cuid())
-  name        String
-  type        AccountType @default(CASH)
-  balance     Float       @default(0)
-  currency    String?
-  isDefault   Boolean     @default(false)
-  color       String?
-  notes       String?
-  
+  id        String      @id @default(cuid())
+  name      String
+  type      AccountType @default(CASH)
+  balance   Float       @default(0)
+  currency  String?
+  isDefault Boolean     @default(false)
+  color     String?
+  notes     String?
+
   // Relationships
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
-  recurringTxns   RecurringTransaction[]
-  balanceHistory  AccountBalanceHistory[] // NEW: Track all balance changes
-  
+  userId         String
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  recurringTxns  RecurringTransaction[]
+  balanceHistory AccountBalanceHistory[] // NEW: Track all balance changes
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([userId])
   @@index([isDefault])
   @@map("accounts")
 }
 
 model AccountBalanceHistory {
-  id          String   @id @default(cuid())
-  accountId   String
-  balance     Float    // New balance after change
-  changeAmount Float   // Positive = added, Negative = subtracted
-  changeType  String   // "DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "TRANSFER"
-  description String?
-  referenceId String?  // Can link to transaction ID or transfer ID
-  createdAt   DateTime @default(now())
-  
+  id           String   @id @default(cuid())
+  accountId    String
+  balance      Float // New balance after change
+  changeAmount Float // Positive = added, Negative = subtracted
+  changeType   String // "DEPOSIT", "WITHDRAWAL", "ADJUSTMENT", "TRANSFER"
+  description  String?
+  referenceId  String? // Can link to transaction ID or transfer ID
+  createdAt    DateTime @default(now())
+
   // Relationships
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   @@index([accountId])
   @@index([createdAt])
   @@index([changeType])

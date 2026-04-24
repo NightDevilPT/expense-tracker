@@ -1,22 +1,26 @@
 // prisma/models/category.prisma
 
 model Category {
-  id          String   @id @default(cuid())
-  name        String
-  type        TransactionType @default(EXPENSE)
-  icon        String?
-  color       String?
-  isDefault   Boolean  @default(false)
-  order       Int      @default(0)
-  
+  id        String          @id @default(cuid())
+  name      String
+  type      TransactionType @default(EXPENSE)
+  icon      String?
+  color     String?
+  isDefault Boolean         @default(false)
+  order     Int             @default(0)
+
   // Relationships
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  budgets     Budget[]
-  savingsGoals SavingsGoal[]
+  userId        String?
+  user          User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  budgets       Budget[]
+  savingsGoals  SavingsGoal[]
   recurringTxns RecurringTransaction[]
-  
+
+  createdAt DateTime @default(now())
+  // To (this tells Prisma to handle it automatically):
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@unique([userId, name])
   @@index([userId])
   @@map("categories")
