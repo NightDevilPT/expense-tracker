@@ -215,8 +215,7 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 					} else if (error.code === ErrorCode.FORBIDDEN) {
 						errorMessage = "Cannot delete default categories";
 					} else if (error.code === ErrorCode.CONFLICT) {
-						errorMessage =
-							"Cannot delete category with existing transactions";
+						errorMessage = error.message || "Cannot delete category with existing transactions";
 					} else {
 						errorMessage = error.message;
 					}

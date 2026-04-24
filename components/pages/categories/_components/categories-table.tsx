@@ -36,7 +36,7 @@ interface CategoriesTableProps {
 }
 
 const typeConfig = {
-	INCOME: { label: "Income", variant: "default" as const, icon: TrendingUp },
+	INCOME: { label: "Income", variant: "success" as const, icon: TrendingUp },
 	EXPENSE: {
 		label: "Expense",
 		variant: "destructive" as const,
@@ -44,7 +44,7 @@ const typeConfig = {
 	},
 	TRANSFER: {
 		label: "Transfer",
-		variant: "secondary" as const,
+		variant: "outline" as const,
 		icon: ArrowRightLeft,
 	},
 };
@@ -110,7 +110,14 @@ export function CategoriesTable({
 				const config = typeConfig[category.type] || typeConfig.EXPENSE;
 				const TypeIcon = config.icon;
 				return (
-					<Badge variant={config.variant} className="gap-1">
+					<Badge
+						variant={config.variant}
+						className={`gap-1 ${
+							config.variant === "destructive"
+								? "text-destructive-foreground"
+								: ""
+						}`}
+					>
 						<TypeIcon className="h-3 w-3" />
 						{config.label}
 					</Badge>

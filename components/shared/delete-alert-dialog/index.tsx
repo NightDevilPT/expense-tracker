@@ -66,10 +66,6 @@ export function DeleteAlertDialog({
 				setOpen(false);
 				// ✅ Call onSuccess callback after successful delete
 				onSuccess?.();
-			} else {
-				toast.error(
-					`Failed to delete ${itemName || itemType}. It may have existing dependencies.`,
-				);
 			}
 		} catch {
 			toast.error("An unexpected error occurred. Please try again.");

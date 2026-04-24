@@ -39,6 +39,10 @@ export function CategoriesPage() {
 			toast.error(error);
 			clearError();
 		}
+
+		return () => {
+			clearError();
+		};
 	}, [error, clearError]);
 
 	// ✅ Only show full skeleton on first load
