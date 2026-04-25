@@ -58,7 +58,7 @@ export function CategoriesCards({
 			onLimitChange={onLimitChange}
 			emptyMessage="No categories found"
 			emptyDescription="Create your first category to get started."
-			gridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+			gridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
 			renderCard={(category) => {
 				const config = typeConfig[category.type] || typeConfig.EXPENSE;
 				const TypeIcon = config.icon;
@@ -68,7 +68,7 @@ export function CategoriesCards({
 					<Card className="group hover:shadow-md transition-shadow">
 						<CardContent className="p-4">
 							<div className="flex items-start justify-between">
-								<div className="flex items-center gap-3">
+								<div className="flex items-center gap-3 flex-1 min-w-0">
 									<div
 										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
 										style={{
@@ -85,21 +85,30 @@ export function CategoriesCards({
 											}}
 										/>
 									</div>
-									<div>
-										<h3 className="font-medium text-sm">
+									<div className="min-w-0">
+										<h3 className="font-medium text-sm truncate">
 											{category.name}
 										</h3>
-										<Badge
-											variant={config.variant}
-											className="gap-1 mt-1 text-xs"
-										>
-											<TypeIcon className="h-3 w-3" />
-											{config.label}
-										</Badge>
+										<div className="flex items-center gap-1 mt-1">
+											<Badge
+												variant={config.variant}
+												className="gap-1 text-xs"
+											>
+												<TypeIcon className="h-3 w-3" />
+												{config.label}
+											</Badge>
+											{category.isDefault && (
+												<Badge
+													variant="outline"
+													className="text-xs"
+												>
+													Default
+												</Badge>
+											)}
+										</div>
 									</div>
 								</div>
-								<div className="flex items-center gap-1">
-									{/* Edit Dialog */}
+								<div className="flex items-center gap-1 shrink-0">
 									<CategoryFormDialog
 										mode="edit"
 										category={category}
@@ -113,13 +122,12 @@ export function CategoriesCards({
 											</Button>
 										}
 									/>
-
-									{/* Delete Dialog */}
 									{!category.isDefault && (
 										<DeleteAlertDialog
 											title="Delete Category"
 											itemName={category.name}
 											itemType="category"
+											description="Transactions using this category will be affected."
 											onDelete={() =>
 												onDelete(category.id)
 											}

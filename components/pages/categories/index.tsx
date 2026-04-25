@@ -3,14 +3,12 @@
 
 import { toast } from "sonner";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { LayoutGrid, List } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { CategoriesTable } from "./_components/categories-table";
 import { CategoriesCards } from "./_components/categories-cards";
 import { CategoriesHeader } from "./_components/categories-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useCategories } from "@/components/context/categories-context/categories-context";
-import { SortConfig } from "@/components/shared/data-table";
+import type { SortConfig } from "@/components/shared/data-table";
 import ToggleView from "@/components/shared/toggle-view";
 
 export function CategoriesPage() {
@@ -24,8 +22,9 @@ export function CategoriesPage() {
 		clearError,
 	} = useCategories();
 
-	const { viewMode, setViewMode } = useTheme();
+	const { viewMode } = useTheme();
 	const [isFirstLoad, setIsFirstLoad] = useState(true);
+	const [isMobileView, setIsMobileView] = useState(false);
 
 	// Search & Sort state
 	const [search, setSearch] = useState("");
@@ -33,6 +32,16 @@ export function CategoriesPage() {
 
 	// Debounce timer for search
 	const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Check screen size for responsive behavior
+	useEffect(() => {
+		const checkScreenSize = () => {
+			setIsMobileView(window.innerWidth <= 900);
+		};
+		checkScreenSize();
+		window.addEventListener("resize", checkScreenSize);
+		return () => window.removeEventListener("resize", checkScreenSize);
+	}, []);
 
 	// Initial fetch
 	useEffect(() => {
@@ -132,18 +141,23 @@ export function CategoriesPage() {
 		onLimitChange: handleLimitChange,
 	};
 
+	// Determine which view to show
+	const showCardView = isMobileView || viewMode === IViewMode.GRID;
+	const showTableView = !isMobileView && viewMode === IViewMode.TABLE;
+
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="h-full grid grid-rows-[auto_1fr]">
 			<div className="flex items-center justify-between">
 				<CategoriesHeader />
-				<ToggleView />
+				{!isMobileView && <ToggleView />}
 			</div>
-
-			{viewMode === IViewMode.TABLE ? (
-				<CategoriesTable {...commonProps} />
-			) : (
-				<CategoriesCards {...commonProps} />
-			)}
+			<div>
+				{showTableView ? (
+					<CategoriesTable {...commonProps} />
+				) : (
+					<CategoriesCards {...commonProps} />
+				)}
+			</div>
 		</div>
 	);
 }

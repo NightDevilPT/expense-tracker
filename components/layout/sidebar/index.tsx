@@ -43,7 +43,7 @@ export default function SidebarLayout({
 				<SidebarFooter>Footer</SidebarFooter>
 			</Sidebar>
 			<SidebarInset className="w-full h-screen grid grid-rows-[60px_1px_1fr]">
-				<div className="w-full flex justify-between items-center px-5">
+				<div className="w-full flex justify-between items-center">
 					<div className="flex justify-center items-center gap-5">
 						<SidebarTrigger />
 						<RouteBreadcrumb />

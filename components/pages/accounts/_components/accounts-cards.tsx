@@ -82,7 +82,7 @@ export function AccountsCards({
 }: AccountsCardsProps) {
 	return (
 		<div className="space-y-4">
-			{/* Search and Filter Row — using shadcn/ui components */}
+			{/* Search and Filter Row */}
 			<div className="flex items-center gap-2">
 				{onSearchChange && (
 					<Input
@@ -125,119 +125,127 @@ export function AccountsCards({
 				onLimitChange={onLimitChange}
 				emptyMessage="No accounts found"
 				emptyDescription="Create your first account to start tracking your finances."
-				gridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+				// Responsive grid:
+				// - Below 600px: 1 column (single card per row)
+				// - Between 600px and 900px: 2 columns
+				// - Above 900px: 3 columns (desktop)
+				gridClassName="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
 				renderCard={(account) => {
 					const typeConfig = ACCOUNT_TYPE_CONFIG[account.type];
 					return (
-						<Card className="group hover:shadow-md transition-shadow">
-							<CardContent className="p-4">
-								<div className="flex items-start justify-between mb-3">
-									<div className="flex items-center gap-2">
-										{account.color && (
-											<div
-												className="w-4 h-4 rounded-full flex-shrink-0 border-2 border-background"
-												style={{
-													backgroundColor:
-														account.color,
-												}}
+						<Card className="group hover:shadow-md transition-shadow h-full">
+							<CardContent className="p-4 h-full">
+								<div className="flex flex-col h-full">
+									<div className="flex items-start justify-between mb-3">
+										<div className="flex items-center gap-2 flex-1 min-w-0">
+											{account.color && (
+												<div
+													className="w-4 h-4 rounded-full flex-shrink-0 border-2 border-background"
+													style={{
+														backgroundColor:
+															account.color,
+													}}
+												/>
+											)}
+											<div className="min-w-0 flex-1">
+												<h3 className="font-medium flex items-center gap-1 truncate">
+													<span className="truncate">
+														{account.name}
+													</span>
+													{account.isDefault && (
+														<Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+													)}
+												</h3>
+												<Badge
+													variant={typeConfig.variant}
+													className="mt-1"
+												>
+													{typeConfig.label}
+												</Badge>
+											</div>
+										</div>
+										<div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+											<AddBalanceDialog
+												account={account}
+												trigger={
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8"
+													>
+														<PlusCircle className="h-3.5 w-3.5 text-green-600" />
+													</Button>
+												}
 											/>
-										)}
-										<div>
-											<h3 className="font-medium flex items-center gap-1">
-												{account.name}
-												{account.isDefault && (
-													<Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
-												)}
-											</h3>
-											<Badge
-												variant={typeConfig.variant}
-												className="mt-1"
-											>
-												{typeConfig.label}
-											</Badge>
+											<AccountsFormDialog
+												mode="edit"
+												account={account}
+												trigger={
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8"
+													>
+														<Edit className="h-3.5 w-3.5" />
+													</Button>
+												}
+											/>
+											<DeleteAlertDialog
+												title="Delete Account"
+												itemName={account.name}
+												itemType="account"
+												description="This will permanently delete the account and cannot be undone."
+												onDelete={() =>
+													onDelete(account.id)
+												}
+												trigger={
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8"
+													>
+														<Trash2 className="h-3.5 w-3.5 text-destructive" />
+													</Button>
+												}
+											/>
 										</div>
 									</div>
-									<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-										<AddBalanceDialog
-											account={account}
-											trigger={
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-												>
-													<PlusCircle className="h-3.5 w-3.5 text-green-600" />
-												</Button>
-											}
-										/>
-										<AccountsFormDialog
-											mode="edit"
-											account={account}
-											trigger={
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-												>
-													<Edit className="h-3.5 w-3.5" />
-												</Button>
-											}
-										/>
-										<DeleteAlertDialog
-											title="Delete Account"
-											itemName={account.name}
-											itemType="account"
-											description="This will permanently delete the account and cannot be undone."
-											onDelete={() =>
-												onDelete(account.id)
-											}
-											trigger={
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-												>
-													<Trash2 className="h-3.5 w-3.5 text-destructive" />
-												</Button>
-											}
-										/>
+
+									<div className="mt-auto pt-3 border-t">
+										<div className="flex items-baseline justify-between">
+											<span className="text-sm text-muted-foreground">
+												Balance
+											</span>
+											<span
+												className={`text-lg font-mono font-semibold tabular-nums ${
+													account.balance < 0
+														? "text-destructive"
+														: ""
+												}`}
+											>
+												{formatCurrency(
+													account.balance,
+													account.currency,
+												)}
+											</span>
+										</div>
 									</div>
+
+									{account.notes && (
+										<p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+											{account.notes}
+										</p>
+									)}
+
+									{account.createdAt && (
+										<p className="text-xs text-muted-foreground mt-2">
+											Created{" "}
+											{new Date(
+												account.createdAt,
+											).toLocaleDateString()}
+										</p>
+									)}
 								</div>
-
-								<div className="mt-4 pt-3 border-t">
-									<div className="flex items-baseline justify-between">
-										<span className="text-sm text-muted-foreground">
-											Balance
-										</span>
-										<span
-											className={`text-lg font-mono font-semibold tabular-nums ${
-												account.balance < 0
-													? "text-destructive"
-													: ""
-											}`}
-										>
-											{formatCurrency(
-												account.balance,
-												account.currency,
-											)}
-										</span>
-									</div>
-								</div>
-
-								{account.notes && (
-									<p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-										{account.notes}
-									</p>
-								)}
-
-								{account.createdAt && (
-									<p className="text-xs text-muted-foreground mt-2">
-										Created{" "}
-										{new Date(
-											account.createdAt,
-										).toLocaleDateString()}
-									</p>
-								)}
 							</CardContent>
 						</Card>
 					);

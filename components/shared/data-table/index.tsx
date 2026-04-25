@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import type { Pagination as PaginationType } from "@/lib/response-service";
 
 // ============================================
@@ -109,11 +110,17 @@ export function DataTable<T extends { id: string }>({
 	onSortChange,
 	filterSlot,
 }: DataTableProps<T>) {
+	// Calculate min width based on columns
+	const minTableWidth = React.useMemo(() => {
+		// Each column has a minimum width
+		return `${columns.length * 100}px`;
+	}, [columns.length]);
+
 	return (
-		<div className="rounded-lg border">
+		<div className="flex flex-col h-full w-full rounded-lg border bg-background">
 			{/* Header: Search + Filters */}
 			{(onSearchChange || filterSlot) && (
-				<div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/10">
+				<div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/10 shrink-0">
 					{onSearchChange && (
 						<div className="relative flex-1 max-w-sm">
 							<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -136,86 +143,86 @@ export function DataTable<T extends { id: string }>({
 						</div>
 					)}
 					{filterSlot && (
-						<div className="flex items-center gap-2 ml-auto">
+						<div className="flex items-center gap-2 ml-auto flex-shrink-0">
 							{filterSlot}
 						</div>
 					)}
 				</div>
 			)}
 
-			{/* Skeleton Loading State */}
-			{isLoading && data.length === 0 ? (
-				<div className="overflow-x-auto">
-					<Table>
-						<TableHeader>
-							<TableRow className="bg-muted/30 border-b">
-								{columns.map((column) => (
-									<TableHead
-										key={column.key}
-										className={`${
-											column.hideOnMobile
-												? "hidden md:table-cell"
-												: ""
-										} ${column.headerClassName || ""}`}
-									>
-										<Skeleton className="h-3 w-16" />
-									</TableHead>
-								))}
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{Array.from({ length: skeletonRowCount }).map(
-								(_, rowIndex) => (
-									<TableRow
-										key={`skeleton-row-${rowIndex}`}
-										className="border-b last:border-0"
-									>
-										{columns.map((column, colIndex) => (
-											<TableCell
-												key={`skeleton-cell-${rowIndex}-${colIndex}`}
-												className={`${
-													column.hideOnMobile
-														? "hidden md:table-cell"
-														: ""
-												} ${column.className || ""}`}
-											>
-												<Skeleton
-													className={`h-4 ${
-														colIndex === 0
-															? "w-6"
-															: colIndex ===
-																  columns.length -
-																		1
-																? "w-16 ml-auto"
-																: "w-full max-w-[120px]"
-													}`}
-												/>
-											</TableCell>
-										))}
-									</TableRow>
-								),
-							)}
-						</TableBody>
-					</Table>
-				</div>
-			) : !data || data.length === 0 ? (
-				/* Empty state */
-				<div className="flex flex-col items-center justify-center py-16 text-center px-4">
-					{emptyIcon || (
-						<div className="rounded-full bg-muted p-3 mb-3">
-							<Inbox className="h-5 w-5 text-muted-foreground" />
-						</div>
-					)}
-					<p className="text-sm font-medium">{emptyMessage}</p>
-					<p className="text-xs text-muted-foreground mt-1 max-w-sm">
-						{emptyDescription}
-					</p>
-				</div>
-			) : (
-				<>
-					{/* Table */}
-					<div className="overflow-x-auto">
+			{/* Scrollable Table Container */}
+			<div className="flex-1 min-h-0 overflow-auto">
+				{/* Skeleton Loading State */}
+				{isLoading && data.length === 0 ? (
+					<div className="w-full">
 						<Table>
+							<TableHeader>
+								<TableRow className="bg-muted/30 border-b">
+									{columns.map((column) => (
+										<TableHead
+											key={column.key}
+											className={`${
+												column.hideOnMobile
+													? "hidden md:table-cell"
+													: ""
+											} ${column.headerClassName || ""}`}
+										>
+											<Skeleton className="h-3 w-16" />
+										</TableHead>
+									))}
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{Array.from({ length: skeletonRowCount }).map(
+									(_, rowIndex) => (
+										<TableRow
+											key={`skeleton-row-${rowIndex}`}
+											className="border-b last:border-0"
+										>
+											{columns.map((column, colIndex) => (
+												<TableCell
+													key={`skeleton-cell-${rowIndex}-${colIndex}`}
+													className={`${
+														column.hideOnMobile
+															? "hidden md:table-cell"
+															: ""
+													} ${column.className || ""}`}
+												>
+													<Skeleton
+														className={`h-4 ${
+															colIndex === 0
+																? "w-6"
+																: colIndex ===
+																	  columns.length -
+																			1
+																	? "w-16 ml-auto"
+																	: "w-full max-w-[120px]"
+														}`}
+													/>
+												</TableCell>
+											))}
+										</TableRow>
+									),
+								)}
+							</TableBody>
+						</Table>
+					</div>
+				) : !data || data.length === 0 ? (
+					/* Empty state */
+					<div className="flex flex-col items-center justify-center py-16 text-center px-4">
+						{emptyIcon || (
+							<div className="rounded-full bg-muted p-3 mb-3">
+								<Inbox className="h-5 w-5 text-muted-foreground" />
+							</div>
+						)}
+						<p className="text-sm font-medium">{emptyMessage}</p>
+						<p className="text-xs text-muted-foreground mt-1 max-w-sm">
+							{emptyDescription}
+						</p>
+					</div>
+				) : (
+					<div className="w-full">
+						<Table style={{ minWidth: minTableWidth }}>
 							<TableHeader>
 								<TableRow className="bg-muted/30 border-b">
 									{columns.map((column) => {
@@ -228,7 +235,7 @@ export function DataTable<T extends { id: string }>({
 										return (
 											<TableHead
 												key={column.key}
-												className={`text-xs font-medium text-muted-foreground ${
+												className={`text-xs font-medium text-muted-foreground whitespace-nowrap ${
 													column.hideOnMobile
 														? "hidden md:table-cell"
 														: ""
@@ -256,7 +263,7 @@ export function DataTable<T extends { id: string }>({
 												<div className="flex items-center gap-1">
 													{column.header}
 													{column.sortable && (
-														<span className="inline-flex">
+														<span className="inline-flex flex-shrink-0">
 															{isSorted ? (
 																isAsc ? (
 																	<ArrowUp className="h-3 w-3" />
@@ -283,7 +290,7 @@ export function DataTable<T extends { id: string }>({
 										{columns.map((column) => (
 											<TableCell
 												key={`${item.id}-${column.key}`}
-												className={`${
+												className={`whitespace-nowrap ${
 													column.hideOnMobile
 														? "hidden md:table-cell"
 														: ""
@@ -297,59 +304,57 @@ export function DataTable<T extends { id: string }>({
 							</TableBody>
 						</Table>
 					</div>
+				)}
+			</div>
 
-					{/* Pagination Footer */}
-					{showPagination &&
-						pagination &&
-						pagination.totalPages > 0 &&
-						onPageChange && (
-							<div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
-								<div className="flex items-center gap-3">
-									{onLimitChange && (
-										<div className="flex items-center gap-2">
-											<span className="text-xs text-muted-foreground">
-												Rows
-											</span>
-											<Select
-												value={String(pagination.limit)}
-												onValueChange={(value) =>
-													onLimitChange(Number(value))
-												}
-											>
-												<SelectTrigger className="h-7 w-[65px] text-xs">
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{pageSizeOptions.map(
-														(size) => (
-															<SelectItem
-																key={size}
-																value={String(
-																	size,
-																)}
-															>
-																{size}
-															</SelectItem>
-														),
-													)}
-												</SelectContent>
-											</Select>
-										</div>
-									)}
-									<p className="text-xs text-muted-foreground">
-										{pagination.total > 0
-											? `Showing ${(pagination.page - 1) * pagination.limit + 1}-${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total}`
-											: "No results"}
-									</p>
+			{/* Pagination Footer - Fixed to bottom */}
+			{showPagination &&
+				pagination &&
+				pagination.totalPages > 0 &&
+				onPageChange && (
+					<div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10 shrink-0">
+						<div className="flex items-center gap-3 flex-shrink-0">
+							{onLimitChange && (
+								<div className="flex items-center gap-2">
+									<span className="text-xs text-muted-foreground">
+										Rows
+									</span>
+									<Select
+										value={String(pagination.limit)}
+										onValueChange={(value) =>
+											onLimitChange(Number(value))
+										}
+									>
+										<SelectTrigger className="h-7 w-[65px] text-xs">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{pageSizeOptions.map((size) => (
+												<SelectItem
+													key={size}
+													value={String(size)}
+												>
+													{size}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-								<TablePagination
-									pagination={pagination}
-									onPageChange={onPageChange}
-								/>
-							</div>
-						)}
-				</>
-			)}
+							)}
+							<p className="text-xs text-muted-foreground whitespace-nowrap">
+								{pagination.total > 0
+									? `Showing ${(pagination.page - 1) * pagination.limit + 1}-${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total}`
+									: "No results"}
+							</p>
+						</div>
+						<div className="flex-shrink-0">
+							<TablePagination
+								pagination={pagination}
+								onPageChange={onPageChange}
+							/>
+						</div>
+					</div>
+				)}
 		</div>
 	);
 }

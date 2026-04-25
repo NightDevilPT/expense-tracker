@@ -25,12 +25,25 @@ export function AccountsPage() {
 
 	const { viewMode } = useTheme();
 	const [isFirstLoad, setIsFirstLoad] = useState(true);
+	const [isMobileView, setIsMobileView] = useState(false);
 
 	// Search, Sort & Filter state — managed HERE, not in context
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortConfig | null>(null);
 	const [typeFilter, setTypeFilter] = useState<AccountType | "ALL">("ALL");
 	const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Check screen size (900px or below = mobile view - show cards only)
+	useEffect(() => {
+		const checkScreenSize = () => {
+			setIsMobileView(window.innerWidth <= 900);
+		};
+
+		checkScreenSize();
+		window.addEventListener("resize", checkScreenSize);
+
+		return () => window.removeEventListener("resize", checkScreenSize);
+	}, []);
 
 	// Initial fetch
 	useEffect(() => {
@@ -141,15 +154,21 @@ export function AccountsPage() {
 		onTypeFilterChange: handleTypeFilterChange,
 	};
 
+	// Determine which view to show
+	// On mobile view (<=900px): Always show cards (never table)
+	// On desktop (>900px): Show table view (respect user's preference)
+	const showCardView = isMobileView || viewMode === IViewMode.GRID;
+	const showTableView = !isMobileView && viewMode === IViewMode.TABLE;
+
 	return (
-		<div className="space-y-6">
+		<div className="h-full grid grid-rows-[auto_1fr]">
 			<div className="flex items-center justify-between">
 				<AccountsHeader />
-				<ToggleView />
+				{/* Hide ToggleView on mobile screens since only cards are shown */}
+				{!isMobileView && <ToggleView />}
 			</div>
-
-			<div className="px-1">
-				{viewMode === IViewMode.TABLE ? (
+			<div>
+				{showTableView ? (
 					<AccountsTable {...commonProps} />
 				) : (
 					<AccountsCards {...commonProps} />

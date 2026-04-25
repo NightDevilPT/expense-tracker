@@ -1,9 +1,11 @@
-import React from 'react'
+import { AuditLogsPage } from "@/components/pages/audit-logs";
 
-const AuditLog = () => {
-  return (
-    <div>AuditLog</div>
-  )
-}
+const AuditLogs = () => {
+	return (
+		<div>
+			<AuditLogsPage />
+		</div>
+	);
+};
 
-export default AuditLog
+export default AuditLogs;

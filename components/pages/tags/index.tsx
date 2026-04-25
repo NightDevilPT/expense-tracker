@@ -3,14 +3,12 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { LayoutGrid, List } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { TagsTable } from "./_components/tags-table";
+import { TagsCards } from "./_components/tags-cards";
+import { TagsHeader } from "./_components/tags-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useTags } from "@/components/context/tags-context/tags-context";
 import type { SortConfig } from "@/components/shared/data-table";
-import { TagsHeader } from "./_components/tags-header";
-import { TagsCards } from "./_components/tags-cards";
 import ToggleView from "@/components/shared/toggle-view";
 
 export function TagsPage() {
@@ -24,13 +22,24 @@ export function TagsPage() {
 		clearError,
 	} = useTags();
 
-	const { viewMode, setViewMode } = useTheme();
+	const { viewMode } = useTheme();
 	const [isFirstLoad, setIsFirstLoad] = useState(true);
+	const [isMobileView, setIsMobileView] = useState(false);
 
 	// Search & Sort state — managed HERE, not in context
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortConfig | null>(null);
 	const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Check screen size for responsive behavior
+	useEffect(() => {
+		const checkScreenSize = () => {
+			setIsMobileView(window.innerWidth <= 900);
+		};
+		checkScreenSize();
+		window.addEventListener("resize", checkScreenSize);
+		return () => window.removeEventListener("resize", checkScreenSize);
+	}, []);
 
 	// Initial fetch
 	useEffect(() => {
@@ -128,15 +137,18 @@ export function TagsPage() {
 		onLimitChange: handleLimitChange,
 	};
 
+	// Determine which view to show
+	const showCardView = isMobileView || viewMode === IViewMode.GRID;
+	const showTableView = !isMobileView && viewMode === IViewMode.TABLE;
+
 	return (
-		<div className="space-y-6">
+		<div className="h-full grid grid-rows-[auto_1fr]">
 			<div className="flex items-center justify-between">
 				<TagsHeader />
-				<ToggleView />
+				{!isMobileView && <ToggleView />}
 			</div>
-
-			<div className="px-1">
-				{viewMode === IViewMode.TABLE ? (
+			<div>
+				{showTableView ? (
 					<TagsTable {...commonProps} />
 				) : (
 					<TagsCards {...commonProps} />

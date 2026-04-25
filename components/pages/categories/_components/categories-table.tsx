@@ -15,6 +15,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { getIconByName } from "@/lib/icon-utils";
 import { CategoryFormDialog } from "./category-form-dialog";
 import type { Category } from "@/lib/category-service/types";
@@ -28,15 +35,18 @@ interface CategoriesTableProps {
 	onPageChange?: (page: number) => void;
 	onLimitChange?: (limit: number) => void;
 	onDelete: (id: string) => Promise<boolean>;
-	// Search & Sort
 	searchValue?: string;
 	onSearchChange?: (value: string) => void;
 	sortConfig?: SortConfig | null;
 	onSortChange?: (sort: SortConfig) => void;
+	typeFilter?: "INCOME" | "EXPENSE" | "TRANSFER" | "ALL";
+	onTypeFilterChange?: (
+		type: "INCOME" | "EXPENSE" | "TRANSFER" | "ALL",
+	) => void;
 }
 
 const typeConfig = {
-	INCOME: { label: "Income", variant: "success" as const, icon: TrendingUp },
+	INCOME: { label: "Income", variant: "default" as const, icon: TrendingUp },
 	EXPENSE: {
 		label: "Expense",
 		variant: "destructive" as const,
@@ -44,10 +54,17 @@ const typeConfig = {
 	},
 	TRANSFER: {
 		label: "Transfer",
-		variant: "outline" as const,
+		variant: "secondary" as const,
 		icon: ArrowRightLeft,
 	},
 };
+
+const TYPE_OPTIONS = [
+	{ value: "ALL", label: "All Types" },
+	{ value: "INCOME", label: "Income" },
+	{ value: "EXPENSE", label: "Expense" },
+	{ value: "TRANSFER", label: "Transfer" },
+];
 
 export function CategoriesTable({
 	categories,
@@ -60,6 +77,8 @@ export function CategoriesTable({
 	onSearchChange,
 	sortConfig,
 	onSortChange,
+	typeFilter = "ALL",
+	onTypeFilterChange,
 }: CategoriesTableProps) {
 	const columns: Column<Category>[] = [
 		{
@@ -77,7 +96,7 @@ export function CategoriesTable({
 		{
 			key: "name",
 			header: "Name",
-			sortable: true, // ✅ Sortable
+			sortable: true,
 			cell: (category) => {
 				const Icon = getIconByName(category.icon);
 				return (
@@ -98,6 +117,11 @@ export function CategoriesTable({
 						<span className="text-sm font-medium">
 							{category.name}
 						</span>
+						{category.isDefault && (
+							<Badge variant="outline" className="text-xs">
+								Default
+							</Badge>
+						)}
 					</div>
 				);
 			},
@@ -105,19 +129,12 @@ export function CategoriesTable({
 		{
 			key: "type",
 			header: "Type",
-			sortable: true, // ✅ Sortable
+			sortable: true,
 			cell: (category) => {
 				const config = typeConfig[category.type] || typeConfig.EXPENSE;
 				const TypeIcon = config.icon;
 				return (
-					<Badge
-						variant={config.variant}
-						className={`gap-1 ${
-							config.variant === "destructive"
-								? "text-destructive-foreground"
-								: ""
-						}`}
-					>
+					<Badge variant={config.variant} className="gap-1">
 						<TypeIcon className="h-3 w-3" />
 						{config.label}
 					</Badge>
@@ -160,17 +177,14 @@ export function CategoriesTable({
 								<Edit className="h-3.5 w-3.5" />
 							</Button>
 						}
-						onSuccess={() => onPageChange?.(pagination?.page || 1)}
 					/>
 					{!category.isDefault && (
 						<DeleteAlertDialog
 							title="Delete Category"
 							itemName={category.name}
 							itemType="category"
+							description="Transactions using this category will be affected."
 							onDelete={() => onDelete(category.id)}
-							onSuccess={() =>
-								onPageChange?.(pagination?.page || 1)
-							}
 							trigger={
 								<Button
 									variant="ghost"
@@ -188,6 +202,28 @@ export function CategoriesTable({
 		},
 	];
 
+	const filterSlot = onTypeFilterChange ? (
+		<Select
+			value={typeFilter}
+			onValueChange={(value) =>
+				onTypeFilterChange(
+					value as "INCOME" | "EXPENSE" | "TRANSFER" | "ALL",
+				)
+			}
+		>
+			<SelectTrigger className="w-[140px]">
+				<SelectValue placeholder="Filter by type" />
+			</SelectTrigger>
+			<SelectContent>
+				{TYPE_OPTIONS.map((option) => (
+					<SelectItem key={option.value} value={option.value}>
+						{option.label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	) : undefined;
+
 	return (
 		<DataTable
 			data={categories}
@@ -203,6 +239,7 @@ export function CategoriesTable({
 			onSearchChange={onSearchChange}
 			sortConfig={sortConfig}
 			onSortChange={onSortChange}
+			filterSlot={filterSlot}
 		/>
 	);
 }

@@ -5,7 +5,7 @@ import { IViewMode, useTheme } from "@/components/context/theme-context";
 const ToggleView = () => {
 	const { viewMode, setViewMode } = useTheme();
 	return (
-		<div className="flex items-center gap-1 border rounded-md p-1">
+		<div className="flex items-center gap-1 border rounded-xl p-1">
 			<Button
 				variant={viewMode === IViewMode.TABLE ? "secondary" : "ghost"}
 				size="icon"
