@@ -1817,7 +1817,3 @@ import { Skeleton } from "@/components/ui/skeleton";
 | Move to `shared/` when reused by 2+ pages                 | Keep reusable components in `_components/` |
 | Return `null` from context on failure                     | Throw unhandled errors from context        |
 | Import page-specific components LAST (relative paths)     | Mix import orders arbitrarily              |
-
----
-
-**Version 4.0** — Updated with Tags implementation patterns, ToggleView component, import order conventions, and simplified loading state handling.

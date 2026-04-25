@@ -1,9 +1,7 @@
-import React from 'react'
+import { AccountsPage } from "@/components/pages/accounts";
 
 const Accounts = () => {
-  return (
-    <div>Accounts</div>
-  )
-}
+	return <AccountsPage />;
+};
 
-export default Accounts
+export default Accounts;
