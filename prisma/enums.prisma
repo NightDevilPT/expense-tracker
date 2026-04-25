@@ -63,3 +63,13 @@ enum NotificationStatus {
   READ
   ARCHIVED
 }
+
+enum CurrencyType {
+  USD
+  EUR
+  GBP
+  INR
+  JPY
+  AUD
+  CAD
+}

@@ -1,9 +1,11 @@
-import React from 'react'
+import { BudgetsPage } from "@/components/pages/budgets";
 
-const Budget = () => {
-  return (
-    <div>Budget</div>
-  )
-}
+const Budgets = () => {
+	return (
+		<div className="px-2">
+			<BudgetsPage />
+		</div>
+	);
+};
 
-export default Budget
+export default Budgets;

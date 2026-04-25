@@ -22,6 +22,7 @@ import type {
 } from "@/lib/budget-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
 import { ErrorCode, type ApiMeta } from "@/lib/response-service";
+import { useRouter } from "next/navigation";
 
 // ============================================
 // TYPES
@@ -82,6 +83,7 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 	const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const router = useRouter()
 
 	const clearError = useCallback(() => setError(null), []);
 
