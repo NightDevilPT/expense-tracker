@@ -19,6 +19,7 @@ import type {
 	CurrentMonthBudget,
 	BudgetAlert,
 	BudgetPeriod,
+	CurrencyType,
 } from "@/lib/budget-service/types";
 import { useAuth } from "@/components/context/auth-context/auth-context";
 import { ErrorCode, type ApiMeta } from "@/lib/response-service";
@@ -39,6 +40,7 @@ interface BudgetsContextType {
 		page?: number;
 		limit?: number;
 		period?: BudgetPeriod;
+		currency?: CurrencyType;
 		categoryId?: string;
 		startDate?: string;
 		endDate?: string;
@@ -93,6 +95,7 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 				page?: number;
 				limit?: number;
 				period?: BudgetPeriod;
+				currency?: CurrencyType;
 				categoryId?: string;
 				startDate?: string;
 				endDate?: string;
@@ -112,6 +115,7 @@ export function BudgetsProvider({ children }: BudgetsProviderProps) {
 				if (params.limit)
 					queryParams.set("limit", params.limit.toString());
 				if (params.period) queryParams.set("period", params.period);
+				if (params.currency) queryParams.set("currency", params.currency);
 				if (params.categoryId)
 					queryParams.set("categoryId", params.categoryId);
 				if (params.startDate)

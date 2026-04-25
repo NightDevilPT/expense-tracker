@@ -21,6 +21,7 @@ import { DeleteAlertDialog } from "@/components/shared/delete-alert-dialog";
 import type {
 	BudgetWithProgress,
 	BudgetPeriod,
+	CurrencyType,
 } from "@/lib/budget-service/types";
 import type { Pagination as PaginationType } from "@/lib/response-service";
 import { BudgetFormDialog } from "./budgets-form-dialog";
@@ -72,10 +73,10 @@ export function BudgetsTable({
 	periodFilter = "ALL",
 	onPeriodFilterChange,
 }: BudgetsTableProps) {
-	const formatCurrency = (amount: number) => {
+	const formatCurrency = (amount: number, currency: CurrencyType = "USD") => {
 		return new Intl.NumberFormat("en-US", {
 			style: "currency",
-			currency: "USD",
+			currency,
 		}).format(amount);
 	};
 
@@ -120,12 +121,23 @@ export function BudgetsTable({
 			className: "w-28",
 		},
 		{
+			key: "currency",
+			header: "Currency",
+			cell: (item) => (
+				<span className="text-sm font-mono">
+					{item.currency || "USD"}
+				</span>
+			),
+			className: "w-20",
+			hideOnMobile: true,
+		},
+		{
 			key: "amount",
 			header: "Budget",
 			sortable: true,
 			cell: (item) => (
 				<span className="font-medium tabular-nums">
-					{formatCurrency(item.amount)}
+					{formatCurrency(item.amount, item.currency || "USD")}
 				</span>
 			),
 			className: "w-36",
@@ -138,7 +150,7 @@ export function BudgetsTable({
 				<div className="space-y-1">
 					<div className="flex items-center justify-between text-sm">
 						<span className="tabular-nums">
-							{formatCurrency(item.spent)}
+							{formatCurrency(item.spent, item.currency || "USD")}
 						</span>
 						<span
 							className={`text-xs tabular-nums ${
@@ -178,7 +190,7 @@ export function BudgetsTable({
 								: "text-emerald-600"
 					}`}
 				>
-					{formatCurrency(item.remaining)}
+					{formatCurrency(item.remaining, item.currency || "USD")}
 				</span>
 			),
 			className: "w-36",

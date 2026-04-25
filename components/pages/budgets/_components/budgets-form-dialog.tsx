@@ -52,12 +52,24 @@ import type {
 import type {
 	BudgetWithProgress,
 	BudgetPeriod,
+	CurrencyType,
 } from "@/lib/budget-service/types";
 import { ZodError } from "zod";
 import { cn } from "@/lib/utils";
 
+const CURRENCY_OPTIONS: { value: CurrencyType; label: string }[] = [
+	{ value: "USD", label: "USD ($)" },
+	{ value: "EUR", label: "EUR (€)" },
+	{ value: "GBP", label: "GBP (£)" },
+	{ value: "INR", label: "INR (₹)" },
+	{ value: "JPY", label: "JPY (¥)" },
+	{ value: "AUD", label: "AUD (A$)" },
+	{ value: "CAD", label: "CAD (C$)" },
+];
+
 type FormData = {
 	amount: string;
+	currency: CurrencyType;
 	period: BudgetPeriod;
 	startDate: Date | undefined;
 	endDate: Date | undefined;
@@ -68,6 +80,7 @@ type FormData = {
 
 interface FormErrors {
 	amount?: string;
+	currency?: string;
 	period?: string;
 	startDate?: string;
 	endDate?: string;
@@ -90,14 +103,12 @@ export function BudgetFormDialog({
 }: BudgetFormDialogProps) {
 	const [open, setOpen] = React.useState(false);
 	const { createBudget, updateBudget, isLoading } = useBudgets();
-	const { categories, getCategoryById } = useCategories();
+	const { categories, fetchCategories, getCategoryById } = useCategories();
 	const isEditMode = mode === "edit" && item;
-	const [initialCategoryOption, setInitialCategoryOption] = React.useState<
-		AutoCompleteOption | undefined
-	>(undefined);
 
 	const [formData, setFormData] = React.useState<FormData>({
 		amount: "",
+		currency: "USD",
 		period: "MONTHLY",
 		startDate: new Date(),
 		endDate: undefined,
@@ -107,11 +118,29 @@ export function BudgetFormDialog({
 	});
 	const [errors, setErrors] = React.useState<FormErrors>({});
 
+	// Fetch all expense categories once on mount
+	React.useEffect(() => {
+		fetchCategories({ limit: 100 });
+	}, [fetchCategories]);
+
+	// Build static options from context
+	const categoryOptions: AutoCompleteOption[] = React.useMemo(
+		() =>
+			categories
+				.map((cat) => ({
+					value: cat.id,
+					label: cat.name,
+					color: cat.color ?? undefined,
+				})),
+		[categories],
+	);
+
 	// Populate form when editing
 	React.useEffect(() => {
 		if (isEditMode && item) {
 			setFormData({
 				amount: item.amount.toString(),
+				currency: item.currency || "USD",
 				period: item.period,
 				startDate: new Date(item.startDate),
 				endDate: item.endDate ? new Date(item.endDate) : undefined,
@@ -122,28 +151,12 @@ export function BudgetFormDialog({
 		}
 	}, [isEditMode, item]);
 
-	// Fetch the selected category when editing using context
-	React.useEffect(() => {
-		if (isEditMode && item?.categoryId) {
-			getCategoryById(item.categoryId).then((category) => {
-				if (category) {
-					setInitialCategoryOption({
-						value: category.id,
-						label: category.name,
-						color: category.color ?? undefined,
-					});
-				}
-			});
-		} else {
-			setInitialCategoryOption(undefined);
-		}
-	}, [isEditMode, item?.categoryId, getCategoryById]);
-
 	// Reset form when dialog closes (create mode only)
 	React.useEffect(() => {
 		if (!open && !isEditMode) {
 			setFormData({
 				amount: "",
+				currency: "USD",
 				period: "MONTHLY",
 				startDate: new Date(),
 				endDate: undefined,
@@ -175,6 +188,7 @@ export function BudgetFormDialog({
 		try {
 			const dataToValidate = {
 				amount: parseFloat(formData.amount),
+				currency: formData.currency,
 				period: formData.period,
 				startDate: formData.startDate,
 				endDate: formData.endDate || null,
@@ -188,6 +202,8 @@ export function BudgetFormDialog({
 
 				if (dataToValidate.amount !== item.amount)
 					updateData.amount = dataToValidate.amount;
+				if (dataToValidate.currency !== item.currency)
+					updateData.currency = dataToValidate.currency;
 				if (dataToValidate.period !== item.period)
 					updateData.period = dataToValidate.period;
 				if (
@@ -257,6 +273,9 @@ export function BudgetFormDialog({
 				const formAmount = parseFloat(formData.amount);
 				if (formAmount !== item.amount) updateData.amount = formAmount;
 
+				if (formData.currency !== item.currency)
+					updateData.currency = formData.currency;
+
 				if (formData.period !== item.period)
 					updateData.period = formData.period;
 
@@ -304,6 +323,7 @@ export function BudgetFormDialog({
 			} else {
 				const createData: CreateBudgetInput = {
 					amount: parseFloat(formData.amount),
+					currency: formData.currency,
 					period: formData.period,
 					startDate: formData.startDate,
 					endDate: formData.endDate || null,
@@ -328,38 +348,6 @@ export function BudgetFormDialog({
 		}
 	}
 
-	// Fetch categories for AutoComplete using context
-	const fetchCategories = React.useCallback(
-		async (query: string): Promise<AutoCompleteOption[]> => {
-			// Filter from already loaded categories in context
-			const expenseCategories = categories.filter(
-				(cat) => cat.type === "EXPENSE",
-			);
-
-			if (!query) {
-				return expenseCategories.map((cat) => ({
-					value: cat.id,
-					label: cat.name,
-					color: cat.color ?? undefined,
-				}));
-			}
-
-			const q = query.toLowerCase();
-			return expenseCategories
-				.filter(
-					(cat) =>
-						cat.name.toLowerCase().includes(q) ||
-						cat.id.toLowerCase().includes(q),
-				)
-				.map((cat) => ({
-					value: cat.id,
-					label: cat.name,
-					color: cat.color ?? undefined,
-				}));
-		},
-		[categories],
-	);
-
 	const defaultTrigger = isEditMode ? null : (
 		<Button>
 			<Plus className="h-4 w-4 mr-2" />
@@ -383,35 +371,68 @@ export function BudgetFormDialog({
 				</DialogHeader>
 				<form id="budget-form" onSubmit={handleSubmit}>
 					<FieldGroup>
-						{/* Amount Field */}
-						<Field data-invalid={!!errors.amount}>
-							<FieldLabel htmlFor="amount">
-								Budget Amount{" "}
-								<span className="text-destructive">*</span>
-							</FieldLabel>
-							<Input
-								id="amount"
-								type="number"
-								step="0.01"
-								min="0.01"
-								value={formData.amount}
-								onChange={(e) =>
-									handleChange("amount", e.target.value)
-								}
-								placeholder="0.00"
-								autoFocus
-							/>
-							<FieldDescription>
-								Total amount allocated for this budget.
-							</FieldDescription>
-							{errors.amount && (
-								<FieldError
-									errors={[{ message: errors.amount }]}
+						{/* Amount + Currency Row */}
+						<div className="grid grid-cols-[1fr_140px] gap-4">
+							<Field data-invalid={!!errors.amount}>
+								<FieldLabel htmlFor="amount">
+									Budget Amount{" "}
+									<span className="text-destructive">*</span>
+								</FieldLabel>
+								<Input
+									id="amount"
+									type="number"
+									step="0.01"
+									min="0.01"
+									value={formData.amount}
+									onChange={(e) =>
+										handleChange("amount", e.target.value)
+									}
+									placeholder="0.00"
+									autoFocus
 								/>
-							)}
-						</Field>
+								{errors.amount && (
+									<FieldError
+										errors={[{ message: errors.amount }]}
+									/>
+								)}
+							</Field>
 
-						{/* Category Field — Using AutoComplete with context */}
+							<Field data-invalid={!!errors.currency}>
+								<FieldLabel htmlFor="currency">
+									Currency
+								</FieldLabel>
+								<Select
+									value={formData.currency}
+									onValueChange={(value) =>
+										handleChange(
+											"currency",
+											value as CurrencyType,
+										)
+									}
+								>
+									<SelectTrigger id="currency">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{CURRENCY_OPTIONS.map((opt) => (
+											<SelectItem
+												key={opt.value}
+												value={opt.value}
+											>
+												{opt.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								{errors.currency && (
+									<FieldError
+										errors={[{ message: errors.currency }]}
+									/>
+								)}
+							</Field>
+						</div>
+
+						{/* Category Field — Static options, local filter */}
 						<Field data-invalid={!!errors.categoryId}>
 							<FieldLabel htmlFor="categoryId">
 								Category
@@ -422,13 +443,7 @@ export function BudgetFormDialog({
 								onValueChange={(value) =>
 									handleChange("categoryId", value)
 								}
-								options={categories
-									.filter((cat) => cat.type === "EXPENSE")
-									.map((cat) => ({
-										value: cat.id,
-										label: cat.name,
-										color: cat.color ?? undefined,
-									}))}
+								options={categoryOptions}
 								placeholder="Select a category..."
 								searchPlaceholder="Search categories..."
 								emptyMessage="No categories found."

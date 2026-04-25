@@ -9,6 +9,12 @@ const budgetSchema: OpenAPIV3.SchemaObject = {
 	properties: {
 		id: { type: "string", format: "cuid", example: "clh1234567890abcdef" },
 		amount: { type: "number", example: 5000.0 },
+		currency: {
+			type: "string",
+			enum: ["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"],
+			example: "USD",
+			description: "Budget currency",
+		},
 		period: {
 			type: "string",
 			enum: ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
@@ -87,6 +93,13 @@ const createBudgetSchema: OpenAPIV3.SchemaObject = {
 			minimum: 0.01,
 			description: "Budget amount",
 			example: 5000.0,
+		},
+		currency: {
+			type: "string",
+			enum: ["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"],
+			default: "USD",
+			example: "USD",
+			description: "Budget currency",
 		},
 		period: {
 			type: "string",
@@ -170,6 +183,16 @@ const getBudgetsParameters: OpenAPIV3.ParameterObject[] = [
 		schema: {
 			type: "string",
 			enum: ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
+		},
+	},
+	{
+		name: "currency",
+		in: "query",
+		required: false,
+		schema: {
+			type: "string",
+			enum: ["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"],
+			description: "Filter by currency",
 		},
 	},
 	{

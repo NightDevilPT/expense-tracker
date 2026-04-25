@@ -141,6 +141,10 @@ export async function getAllBudgets(
 		where.categoryId = validatedParams.categoryId;
 	}
 
+	if (validatedParams.currency) {
+		where.currency = validatedParams.currency;
+	}
+
 	if (validatedParams.startDate) {
 		where.startDate = { gte: new Date(validatedParams.startDate) };
 	}
@@ -233,6 +237,7 @@ export async function createBudget(
 	const budget = await prisma.budget.create({
 		data: {
 			amount: validatedData.amount,
+			currency: validatedData.currency,
 			period: validatedData.period,
 			startDate: new Date(validatedData.startDate),
 			endDate: validatedData.endDate
@@ -257,6 +262,7 @@ export async function createBudget(
 		budget.id,
 		{
 			amount: budget.amount,
+			currency: budget.currency,
 			period: budget.period,
 			startDate: budget.startDate,
 			endDate: budget.endDate,
@@ -265,7 +271,7 @@ export async function createBudget(
 			categoryId: budget.categoryId,
 		},
 		{
-			description: `Budget created for ${budget.period} with amount ${budget.amount}`,
+			description: `Budget created for ${budget.period} with amount ${budget.amount} ${budget.currency}`,
 		},
 	);
 
@@ -378,6 +384,7 @@ export async function deleteBudget(id: string, userId: string): Promise<void> {
 	// Prepare budget data for audit
 	const budgetDataForAudit = {
 		amount: budget.amount,
+		currency: budget.currency,
 		period: budget.period,
 		startDate: budget.startDate,
 		endDate: budget.endDate,
@@ -392,7 +399,7 @@ export async function deleteBudget(id: string, userId: string): Promise<void> {
 
 	// Audit log for budget deletion
 	await logDelete(userId, "Budget", id, budgetDataForAudit, {
-		description: `Budget for ${budget.period} with amount ${budget.amount} deleted`,
+		description: `Budget for ${budget.period} with amount ${budget.amount} ${budget.currency} deleted`,
 	});
 }
 
@@ -491,13 +498,14 @@ export async function getBudgetAlerts(userId: string): Promise<BudgetAlert[]> {
 				{
 					categoryName: budget.category?.name || "All Categories",
 					amount: budget.amount,
+					currency: budget.currency,
 					spent: budget.spent,
 					percentage,
 					threshold: budget.alertThreshold,
 					severity,
 				},
 				{
-					description: `Budget alert: ${severity} - ${percentage.toFixed(1)}% of ${budget.period} budget used`,
+					description: `Budget alert: ${severity} - ${percentage.toFixed(1)}% of ${budget.period} budget used (${budget.amount} ${budget.currency})`,
 				},
 			);
 		}

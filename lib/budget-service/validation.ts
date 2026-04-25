@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const createBudgetSchema = z.object({
 	amount: z.number().positive("Amount must be positive"),
+	currency: z.enum(["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"]).default("USD"),
 	period: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).default("MONTHLY"),
 	startDate: z
 		.string()
@@ -19,6 +20,7 @@ export const createBudgetSchema = z.object({
 export const updateBudgetSchema = z
 	.object({
 		amount: z.number().positive().optional(),
+		currency: z.enum(["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"]).optional(),
 		period: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional(),
 		startDate: z.string().datetime().or(z.date()).optional(),
 		endDate: z.string().datetime().or(z.date()).nullable().optional(),
@@ -34,6 +36,7 @@ export const getBudgetsQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 	period: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional(),
+	currency: z.enum(["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"]).optional(),
 	categoryId: z.string().cuid().optional(),
 	startDate: z.string().datetime().optional(),
 	endDate: z.string().datetime().optional(),

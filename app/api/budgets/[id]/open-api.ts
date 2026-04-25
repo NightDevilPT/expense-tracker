@@ -15,6 +15,12 @@ const updateBudgetSchema: OpenAPIV3.SchemaObject = {
 	type: "object",
 	properties: {
 		amount: { type: "number", minimum: 0.01, example: 6000.0 },
+		currency: {
+			type: "string",
+			enum: ["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD"],
+			example: "EUR",
+			description: "Budget currency",
+		},
 		period: {
 			type: "string",
 			enum: ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],

@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import type {
 	BudgetWithProgress,
 	BudgetPeriod,
+	CurrencyType,
 } from "@/lib/budget-service/types";
 import type { Pagination as PaginationType } from "@/lib/response-service";
 import { BudgetFormDialog } from "./budgets-form-dialog";
@@ -50,10 +51,10 @@ export function BudgetCards({
 	periodFilter = "ALL",
 	onPeriodFilterChange,
 }: BudgetCardsProps) {
-	const formatCurrency = (amount: number) => {
+	const formatCurrency = (amount: number, currency: CurrencyType = "USD") => {
 		return new Intl.NumberFormat("en-US", {
 			style: "currency",
-			currency: "USD",
+			currency,
 		}).format(amount);
 	};
 
@@ -71,6 +72,7 @@ export function BudgetCards({
 				const periodConfig = PERIOD_CONFIG[item.period];
 				const isOverBudget = item.isOverBudget;
 				const isNearThreshold = item.isNearThreshold;
+				const currency = item.currency || "USD";
 
 				return (
 					<Card
@@ -101,12 +103,21 @@ export function BudgetCards({
 												{item.category?.name ||
 													"All Categories"}
 											</h3>
-											<Badge
-												variant={periodConfig.variant}
-												className="mt-1"
-											>
-												{periodConfig.label}
-											</Badge>
+											<div className="flex items-center gap-1 mt-1">
+												<Badge
+													variant={
+														periodConfig.variant
+													}
+												>
+													{periodConfig.label}
+												</Badge>
+												<Badge
+													variant="outline"
+													className="text-[10px] px-1.5 py-0"
+												>
+													{currency}
+												</Badge>
+											</div>
 										</div>
 									</div>
 									<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -182,7 +193,10 @@ export function BudgetCards({
 											Budget
 										</p>
 										<p className="text-sm font-medium tabular-nums">
-											{formatCurrency(item.amount)}
+											{formatCurrency(
+												item.amount,
+												currency,
+											)}
 										</p>
 									</div>
 									<div>
@@ -190,7 +204,10 @@ export function BudgetCards({
 											Spent
 										</p>
 										<p className="text-sm font-medium tabular-nums">
-											{formatCurrency(item.spent)}
+											{formatCurrency(
+												item.spent,
+												currency,
+											)}
 										</p>
 									</div>
 									<div>
@@ -206,7 +223,10 @@ export function BudgetCards({
 														: "text-emerald-600"
 											}`}
 										>
-											{formatCurrency(item.remaining)}
+											{formatCurrency(
+												item.remaining,
+												currency,
+											)}
 										</p>
 									</div>
 									<div>

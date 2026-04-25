@@ -89,7 +89,7 @@ export function CategoriesProvider({ children }: CategoriesProviderProps) {
 				const queryParams = new URLSearchParams();
 				// ✅ Always set page and limit with defaults
 				queryParams.set("page", String(params.page || 1));
-				queryParams.set("limit", String(params.limit || 5));
+				queryParams.set("limit", String(params.limit || 10));
 
 				if (params.search) queryParams.set("search", params.search);
 				if (params.type) queryParams.set("type", params.type);

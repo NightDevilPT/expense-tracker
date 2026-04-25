@@ -26,6 +26,7 @@ function parseGetBudgetsParams(validatedParams: any): GetBudgetsParams {
 		page: validatedParams.page,
 		limit: validatedParams.limit,
 		period: validatedParams.period,
+		currency: validatedParams.currency,
 		categoryId: validatedParams.categoryId,
 		startDate: validatedParams.startDate
 			? new Date(validatedParams.startDate)
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest) {
 				? parseInt(searchParams.limit)
 				: undefined,
 			period: searchParams.period as any,
+			currency: searchParams.currency as any,
 			categoryId: searchParams.categoryId,
 			startDate: searchParams.startDate,
 			endDate: searchParams.endDate,

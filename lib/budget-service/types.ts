@@ -1,6 +1,7 @@
 // lib/budget-service/types.ts
 
 export type BudgetPeriod = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+export type CurrencyType = "USD" | "EUR" | "GBP" | "INR" | "JPY" | "AUD" | "CAD";
 
 export interface Category {
 	id: string;
@@ -16,6 +17,7 @@ export interface Category {
 export interface Budget {
 	id: string;
 	amount: number;
+	currency: CurrencyType;
 	period: BudgetPeriod;
 	startDate: Date;
 	endDate: Date | null;
@@ -56,6 +58,7 @@ export interface GetBudgetsParams {
 	page?: number;
 	limit?: number;
 	period?: BudgetPeriod;
+	currency?: CurrencyType;
 	categoryId?: string;
 	startDate?: Date;
 	endDate?: Date;
