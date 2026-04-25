@@ -12,6 +12,7 @@ import { AuditLogsProvider } from "./audit-logs-context/audit-logs-context";
 import { CategoriesProvider } from "./categories-context/categories-context";
 import { TransactionsProvider } from "./transactions-context/transactions-context";
 import { SavingsGoalsProvider } from "./savings-goals-context/savings-goals-context";
+import { DashboardProvider } from "./dashboard-context/dashboard-context";
 
 // ============================================
 // CENTRALIZED PROVIDER COMPOSITION
@@ -31,11 +32,13 @@ export function AppProviders({ children }: AppProvidersProps) {
 							<RecurringProvider>
 								<SavingsGoalsProvider>
 									<TransactionsProvider>
-										<AuditLogsProvider>
-											<ThemeContextProvider>
-												{children}
-											</ThemeContextProvider>
-										</AuditLogsProvider>
+										<DashboardProvider>
+											<AuditLogsProvider>
+												<ThemeContextProvider>
+													{children}
+												</ThemeContextProvider>
+											</AuditLogsProvider>
+										</DashboardProvider>
 									</TransactionsProvider>
 								</SavingsGoalsProvider>
 							</RecurringProvider>
@@ -65,6 +68,8 @@ export function useAppStore() {
 		require("./audit-logs-context/audit-logs-context").useAuditLogs();
 	const savingsGoals =
 		require("./savings-goals-context/savings-goals-context").useSavingsGoals();
+	const dashboard =
+		require("./dashboard-context/dashboard-context").useDashboard();
 	const transactions =
 		require("./transactions-context/transactions-context").useTransactions();
 
@@ -78,6 +83,7 @@ export function useAppStore() {
 		auditLogs,
 		savingsGoals,
 		transactions,
+		dashboard,
 	};
 }
 
@@ -92,5 +98,6 @@ export { useAccounts } from "./accounts-context/accounts-context";
 export { useRecurring } from "./recurring-context/recurring-context";
 export { useAuditLogs } from "./audit-logs-context/audit-logs-context";
 export { useCategories } from "./categories-context/categories-context";
-export { useSavingsGoals } from "./savings-goals-context/savings-goals-context";
+export { useDashboard } from "./dashboard-context/dashboard-context";
 export { useTransactions } from "./transactions-context/transactions-context";
+export { useSavingsGoals } from "./savings-goals-context/savings-goals-context";
