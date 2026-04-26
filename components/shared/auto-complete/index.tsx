@@ -1,4 +1,4 @@
-// components/shared/auto-complete/auto-complete.tsx
+// components/shared/auto-complete/index.tsx
 "use client";
 
 import * as React from "react";

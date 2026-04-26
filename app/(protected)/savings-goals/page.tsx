@@ -1,9 +1,7 @@
-import React from 'react'
+import { SavingsGoalsPage } from "@/components/pages/savings-goals";
 
 const SavingGoals = () => {
-  return (
-	<div>SavingGoals</div>
-  )
-}
+	return <SavingsGoalsPage />;
+};
 
-export default SavingGoals
+export default SavingGoals;

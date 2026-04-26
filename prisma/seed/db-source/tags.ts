@@ -27,9 +27,10 @@ export async function seedTags(
   for (const name of picked) {
     const tag = await prisma.tag.create({
       data: {
-        name,
+        name: name.toUpperCase(),
         color: randomItem(COLORS),
         userId,
+        createdAt: new Date(),
       },
     });
     tags.push(tag);

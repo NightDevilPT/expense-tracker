@@ -1,8 +1,7 @@
 // prisma/seed/db-source/categories.ts
-import { TransactionType } from "@/generated/prisma/enums";
 import { SEED_CONFIG } from "../config";
-import { randomItems } from "../utils";
 import { PrismaClient } from "@/generated/prisma/client";
+import { TransactionType } from "@/generated/prisma/enums";
 
 // Must match the ICON_MAP keys from icon-utils.ts
 const ICONS = [
@@ -152,7 +151,7 @@ const DEFAULT_CATEGORIES: CategoryTemplate[] = [
 
 const EXTRA_CATEGORIES: CategoryTemplate[] = [
 	{
-		name: "Coffee",
+		name: "Coffee & Cafe",
 		type: "EXPENSE",
 		icon: "Coffee",
 		color: "#78716c",
@@ -166,14 +165,14 @@ const EXTRA_CATEGORIES: CategoryTemplate[] = [
 		isDefault: false,
 	},
 	{
-		name: "Fuel",
+		name: "Fuel & Gas",
 		type: "EXPENSE",
 		icon: "Fuel",
 		color: "#64748b",
 		isDefault: false,
 	},
 	{
-		name: "Internet",
+		name: "Internet Bill",
 		type: "EXPENSE",
 		icon: "Wifi",
 		color: "#3b82f6",
@@ -187,21 +186,21 @@ const EXTRA_CATEGORIES: CategoryTemplate[] = [
 		isDefault: false,
 	},
 	{
-		name: "Gym",
+		name: "Gym & Fitness",
 		type: "EXPENSE",
 		icon: "Dumbbell",
 		color: "#ef4444",
 		isDefault: false,
 	},
 	{
-		name: "Education",
+		name: "Education & Books",
 		type: "EXPENSE",
 		icon: "BookOpen",
 		color: "#eab308",
 		isDefault: false,
 	},
 	{
-		name: "Investment Return",
+		name: "Investment Returns",
 		type: "INCOME",
 		icon: "TrendingUp",
 		color: "#22c55e",
@@ -215,13 +214,63 @@ const EXTRA_CATEGORIES: CategoryTemplate[] = [
 		isDefault: false,
 	},
 	{
-		name: "Rent Income",
+		name: "Rental Income",
 		type: "INCOME",
 		icon: "Building",
 		color: "#14b8a6",
 		isDefault: false,
 	},
+	{
+		name: "Subscription Services",
+		type: "EXPENSE",
+		icon: "Tv",
+		color: "#8b5cf6",
+		isDefault: false,
+	},
+	{
+		name: "Pet Care",
+		type: "EXPENSE",
+		icon: "Heart",
+		color: "#ec4899",
+		isDefault: false,
+	},
+	{
+		name: "Home Maintenance",
+		type: "EXPENSE",
+		icon: "Wrench",
+		color: "#64748b",
+		isDefault: false,
+	},
+	{
+		name: "Travel & Vacation",
+		type: "EXPENSE",
+		icon: "Plane",
+		color: "#14b8a6",
+		isDefault: false,
+	},
+	{
+		name: "Insurance",
+		type: "EXPENSE",
+		icon: "Shield",
+		color: "#3b82f6",
+		isDefault: false,
+	},
 ];
+
+// Track used category names to prevent duplicates for the same user
+const getUniqueExtras = (userId: string, count: number): CategoryTemplate[] => {
+	// Create a copy of EXTRA_CATEGORIES to shuffle
+	const shuffled = [...EXTRA_CATEGORIES];
+
+	// Fisher-Yates shuffle
+	for (let i = shuffled.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+	}
+
+	// Return first 'count' items (unique selection)
+	return shuffled.slice(0, count);
+};
 
 export async function seedCategories(
 	prisma: PrismaClient,
@@ -229,9 +278,23 @@ export async function seedCategories(
 ): Promise<Awaited<ReturnType<typeof prisma.category.create>>[]> {
 	const categories: Awaited<ReturnType<typeof prisma.category.create>>[] = [];
 
-	// Always seed defaults first
+	// Check existing categories for this user to avoid duplicates
+	const existingCategories = await prisma.category.findMany({
+		where: { userId },
+		select: { name: true },
+	});
+
+	const existingNames = new Set(existingCategories.map((c) => c.name));
+
+	// Always seed defaults first (only if not already existing)
 	for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
 		const t = DEFAULT_CATEGORIES[i];
+
+		// Skip if category already exists for this user
+		if (existingNames.has(t.name)) {
+			continue;
+		}
+
 		const cat = await prisma.category.create({
 			data: {
 				name: t.name,
@@ -244,26 +307,43 @@ export async function seedCategories(
 			},
 		});
 		categories.push(cat);
+		existingNames.add(t.name);
 	}
 
-	// Fill up to categoriesPerUser with extras
-	const remaining = SEED_CONFIG.categoriesPerUser - DEFAULT_CATEGORIES.length;
-	const extras = randomItems(EXTRA_CATEGORIES, Math.max(0, remaining));
-	for (let i = 0; i < extras.length; i++) {
-		const t = extras[i];
-		const cat = await prisma.category.create({
-			data: {
-				name: t.name,
-				type: t.type,
-				icon: t.icon,
-				color: t.color,
-				isDefault: t.isDefault,
-				order: DEFAULT_CATEGORIES.length + i,
-				userId,
-			},
-		});
-		categories.push(cat);
+	// Calculate remaining needed categories
+	const currentCount = categories.length;
+	const remainingNeeded = SEED_CONFIG.categoriesPerUser - currentCount;
+
+	if (remainingNeeded > 0) {
+		// Get unique extra categories (no duplicates within this user)
+		const uniqueExtras = getUniqueExtras(userId, remainingNeeded);
+
+		for (let i = 0; i < uniqueExtras.length; i++) {
+			const t = uniqueExtras[i];
+
+			// Double-check we're not creating a duplicate
+			if (existingNames.has(t.name)) {
+				continue;
+			}
+
+			const cat = await prisma.category.create({
+				data: {
+					name: t.name,
+					type: t.type,
+					icon: t.icon,
+					color: t.color,
+					isDefault: t.isDefault,
+					order: DEFAULT_CATEGORIES.length + i,
+					userId,
+				},
+			});
+			categories.push(cat);
+			existingNames.add(t.name);
+		}
 	}
 
+	console.log(
+		`  ✅ Created ${categories.length} categories for user ${userId}`,
+	);
 	return categories;
 }

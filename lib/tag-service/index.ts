@@ -65,6 +65,8 @@ export async function getAllTags(
 				name: true,
 				color: true,
 				userId: true,
+				createdAt: true,
+				updatedAt: true
 			},
 			skip,
 			take: limit,

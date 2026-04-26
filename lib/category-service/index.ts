@@ -28,9 +28,12 @@ export async function getAllCategories(
 		type: params.type,
 	});
 
-	// Build where clause
+	// Build where clause - only user's own categories AND default categories (userId = null)
 	const where: any = {
-		OR: [{ userId: userId }, { isDefault: true }],
+		OR: [
+			{ userId: userId }, // User's own custom categories
+			{ userId: null }, // System default categories
+		],
 	};
 
 	// Add search filter
