@@ -1,9 +1,8 @@
-import React from 'react'
+import React from "react";
+import RecurringPage from "@/components/pages/recurring";
 
 const Recurring = () => {
-  return (
-    <div>Recurring</div>
-  )
-}
+	return <RecurringPage />;
+};
 
-export default Recurring
+export default Recurring;
