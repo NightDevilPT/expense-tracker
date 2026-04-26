@@ -103,7 +103,7 @@ const summaryParameters: OpenAPIV3.ParameterObject[] = [
 		description: "End date for summary period",
 		required: false,
 		schema: { type: "string", format: "date-time" },
-		example: "2024-01-31T23:59:59Z",
+		example: "2024-12-31T23:59:59Z",
 	},
 	{
 		name: "categoryIds",
@@ -111,7 +111,7 @@ const summaryParameters: OpenAPIV3.ParameterObject[] = [
 		description: "Filter by category IDs (comma-separated)",
 		required: false,
 		schema: { type: "string" },
-		example: "category-001,category-002",
+		example: "clh1234567890abcdef,clh0987654321fedcba",
 	},
 	{
 		name: "accountIds",
@@ -119,7 +119,7 @@ const summaryParameters: OpenAPIV3.ParameterObject[] = [
 		description: "Filter by account IDs (comma-separated)",
 		required: false,
 		schema: { type: "string" },
-		example: "account-001,account-002",
+		example: "clh1234567890abcdef",
 	},
 ];
 
