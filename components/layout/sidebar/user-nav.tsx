@@ -54,6 +54,8 @@ export function UserNav({ compact = false }: UserNavProps) {
 		return <Button>Sign in</Button>;
 	}
 
+	console.log(user, "CCCC");
+
 	// Compact mode (icon only)
 	if (compact) {
 		return (
@@ -78,7 +80,12 @@ export function UserNav({ compact = false }: UserNavProps) {
 					align="end"
 					sideOffset={8}
 				>
-					<DropdownMenuLabel className="font-normal">
+					<DropdownMenuLabel className="font-normal grid grid-cols-[40px_1fr]">
+						<Avatar className="h-8 w-8">
+							<AvatarFallback className="bg-primary text-primary-foreground text-sm">
+								{getUserInitial()}
+							</AvatarFallback>
+						</Avatar>
 						<div className="flex flex-col space-y-1">
 							<p className="text-sm font-medium leading-none">
 								{user.name}
@@ -120,7 +127,7 @@ export function UserNav({ compact = false }: UserNavProps) {
 					className="relative h-auto p-0 hover:bg-transparent"
 					aria-label="User menu"
 				>
-					<div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent">
+					<div className="flex items-center gap-3 rounded-lg p-1 transition-colors hover:bg-accent">
 						<Avatar className="h-8 w-8">
 							<AvatarFallback className="bg-primary text-primary-foreground text-sm">
 								{getUserInitial()}
@@ -131,7 +138,12 @@ export function UserNav({ compact = false }: UserNavProps) {
 			</DropdownMenuTrigger>
 
 			<DropdownMenuContent className="w-56" align="end" sideOffset={8}>
-				<DropdownMenuLabel className="font-normal">
+				<DropdownMenuLabel className="font-normal grid grid-cols-[40px_1fr]">
+					<Avatar className="h-8 w-8">
+						<AvatarFallback className="bg-primary text-primary-foreground text-sm">
+							{getUserInitial()}
+						</AvatarFallback>
+					</Avatar>
 					<div className="flex flex-col space-y-1">
 						<p className="text-sm font-medium leading-none">
 							{user.name}

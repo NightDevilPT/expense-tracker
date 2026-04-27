@@ -12,8 +12,9 @@ import type {
 	RequestOtpInput,
 	LoginOtpInput,
 } from "@/lib/user-service/validation";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 import type { SafeUserProfile } from "@/lib/user-service/types";
+import { ErrorCode } from "@/lib/response-service";
 
 // ============================================
 // TYPES
@@ -21,25 +22,16 @@ import type { SafeUserProfile } from "@/lib/user-service/types";
 
 export type User = SafeUserProfile;
 
-interface RequestOtpResponse {
-	email: string;
-	otpId: string;
-	expiresAt: string;
-	otpCode?: string;
-}
-
-interface LoginResponse {
-	user: User;
-}
-
 interface AuthContextType {
 	user: User | null;
 	isLoading: boolean;
 	isAuthenticated: boolean;
+	error: string | null;
 	login: (data: LoginOtpInput) => Promise<void>;
 	logout: () => Promise<void>;
-	requestOtp: (data: RequestOtpInput) => Promise<RequestOtpResponse>;
+	requestOtp: (data: RequestOtpInput) => Promise<void>;
 	refreshUser: () => Promise<void>;
+	clearError: () => void;
 }
 
 // ============================================
@@ -59,12 +51,16 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
 	const [user, setUser] = useState<User | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	const clearError = useCallback(() => setError(null), []);
 
 	const fetchUser = useCallback(async () => {
 		try {
-			const userData = await apiClient.get<User>("/auth/me");
-			setUser(userData);
-			return userData;
+			// ✅ apiClient.get returns ApiSuccessResponse<User>
+			const response = await apiClient.get<User>("/auth/me");
+			setUser(response.data);
+			return response.data;
 		} catch (error) {
 			setUser(null);
 			return null;
@@ -72,7 +68,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	}, []);
 
 	const refreshUser = useCallback(async () => {
-		await fetchUser();
+		setIsLoading(true);
+		setError(null);
+
+		try {
+			await fetchUser();
+		} catch (error) {
+			const errorMessage =
+				error instanceof ApiError
+					? error.message
+					: "Failed to refresh user";
+			setError(errorMessage);
+		} finally {
+			setIsLoading(false);
+		}
 	}, [fetchUser]);
 
 	useEffect(() => {
@@ -86,30 +95,81 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	}, [fetchUser]);
 
 	const requestOtp = useCallback(
-		async (data: RequestOtpInput): Promise<RequestOtpResponse> => {
-			return apiClient.post<RequestOtpResponse>(
-				"/auth/request-otp",
-				data,
-			);
+		async (data: RequestOtpInput): Promise<void> => {
+			setIsLoading(true);
+			setError(null);
+
+			try {
+				// ✅ apiClient.post returns ApiSuccessResponse
+				await apiClient.post("/auth/request-otp", data);
+			} catch (error) {
+				let errorMessage = "Failed to send OTP";
+
+				if (error instanceof ApiError) {
+					if (error.code === ErrorCode.BAD_REQUEST) {
+						errorMessage = error.message;
+					} else if (error.code === ErrorCode.TOO_MANY_REQUESTS) {
+						errorMessage =
+							"Too many requests. Please try again later.";
+					} else {
+						errorMessage = error.message;
+					}
+				}
+
+				setError(errorMessage);
+				throw error;
+			} finally {
+				setIsLoading(false);
+			}
 		},
 		[],
 	);
 
 	const login = useCallback(async (data: LoginOtpInput) => {
-		const response = await apiClient.post<LoginResponse>(
-			"/auth/login",
-			data,
-		);
-		setUser(response.user);
+		setIsLoading(true);
+		setError(null);
+
+		try {
+			// ✅ apiClient.post returns ApiSuccessResponse<{ user: User }>
+			const response = await apiClient.post<{ user: User }>(
+				"/auth/login",
+				data,
+			);
+			setUser(response.data.user);
+		} catch (error) {
+			let errorMessage = "Failed to login";
+
+			if (error instanceof ApiError) {
+				if (error.code === ErrorCode.BAD_REQUEST) {
+					errorMessage = "Invalid or expired OTP";
+				} else if (error.code === ErrorCode.UNAUTHORIZED) {
+					errorMessage = "Invalid OTP. Please try again.";
+				} else {
+					errorMessage = error.message;
+				}
+			}
+
+			setError(errorMessage);
+			throw error;
+		} finally {
+			setIsLoading(false);
+		}
 	}, []);
 
 	const logout = useCallback(async () => {
+		setIsLoading(true);
+		setError(null);
+
 		try {
+			// ✅ apiClient.post returns ApiSuccessResponse
 			await apiClient.post("/auth/logout");
 		} catch (error) {
-			console.error("Logout API error:", error);
+			const errorMessage =
+				error instanceof ApiError ? error.message : "Failed to logout";
+			setError(errorMessage);
 		} finally {
 			setUser(null);
+			setIsLoading(false);
 		}
 	}, []);
 
@@ -117,10 +177,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		user,
 		isLoading,
 		isAuthenticated: !!user,
+		error,
 		login,
 		logout,
 		requestOtp,
 		refreshUser,
+		clearError,
 	};
 
 	return (

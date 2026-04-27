@@ -1,6 +1,5 @@
 // lib/user-service/index.ts
 
-import { prisma } from "@/lib/prisma";
 import {
 	RequestOtpInput,
 	LoginOtpInput,
@@ -8,8 +7,11 @@ import {
 	validateUpdateUser,
 	type UpdateUserInput,
 } from "./validation";
-import { Logger } from "@/lib/logger-service";
+import { prisma } from "@/lib/prisma";
 import { SafeUserProfile } from "./types";
+import { Logger } from "@/lib/logger-service";
+import { sendEmail } from "@/lib/email-service";
+import { EmailTemplate } from "@/lib/email-service/types";
 
 const logger = new Logger("USER-SERVICE");
 
@@ -66,6 +68,34 @@ export async function requestOtp(data: RequestOtpInput) {
 
 		return otpSession;
 	});
+
+	// Send OTP email
+	try {
+		const emailResult = await sendEmail(EmailTemplate.OTP_MAIL, {
+			to: email,
+			subject: "Your OTP Verification Code",
+			userName: email.split("@")[0],
+			otp: otpCode,
+			expiryMinutes: 10,
+		});
+
+		if (!emailResult.success) {
+			logger.error("Failed to send OTP email", {
+				email,
+				error: emailResult.error,
+			});
+		} else {
+			logger.info("OTP email sent successfully", {
+				email,
+				messageId: emailResult.messageId,
+			});
+		}
+	} catch (error) {
+		logger.error("Error sending OTP email", {
+			email,
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+	}
 
 	logger.info("OTP request completed successfully", {
 		email,
