@@ -5,11 +5,11 @@ import { toast } from "sonner";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { CategoriesTable } from "./_components/categories-table";
 import { CategoriesCards } from "./_components/categories-cards";
-import { CategoriesHeader } from "./_components/categories-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useCategories } from "@/components/context/categories-context/categories-context";
 import type { SortConfig } from "@/components/shared/data-table";
-import ToggleView from "@/components/shared/toggle-view";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { CategoryFormDialog } from "./_components/category-form-dialog";
 
 export function CategoriesPage() {
 	const {
@@ -147,11 +147,13 @@ export function CategoriesPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<div className="flex items-center justify-between">
-				<CategoriesHeader />
-				{!isMobileView && <ToggleView />}
-			</div>
-			<div>
+			<GenericPageHeader
+				title="Categories"
+				subtitle="Manage your income and expense categories"
+				showGridToggle={!isMobileView}
+				form={<CategoryFormDialog />}
+			/>
+			<div className="px-1">
 				{showTableView ? (
 					<CategoriesTable {...commonProps} />
 				) : (

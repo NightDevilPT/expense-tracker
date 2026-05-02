@@ -19,9 +19,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TransactionsSkeletons } from "./_components/transactions-skeletons";
-import { TransactionsHeader } from "./_components/transactions-header";
 import { TransactionSummaryCards } from "./_components/transaction-summary-cards";
 import { TransactionsTable } from "./_components/transactions-table";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { TransactionsFormDialog } from "./_components/transactions-form-dialog";
 
 export default function TransactionsPage() {
 	const {
@@ -404,9 +405,13 @@ export default function TransactionsPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="container mx-auto space-y-6">
 			<div className="flex items-center justify-between">
-				<TransactionsHeader />
+				<GenericPageHeader
+					title="Transactions"
+					subtitle="Manage your financial transactions"
+					form={<TransactionsFormDialog />}
+				/>
 				<div className="flex items-center gap-2">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>

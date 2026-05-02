@@ -29,5 +29,14 @@ export interface UserProfile {
   updatedAt: Date;
 }
 
+
+// Add this type for the OTP response data
+export interface OtpResponseData {
+  email: string;
+  otpId: string;
+  expiresAt: string;
+  otpCode?: string; // Only in development
+}
+
 // Safe user profile (excludes any sensitive fields)
 export type SafeUserProfile = UserProfile;

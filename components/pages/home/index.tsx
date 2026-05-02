@@ -245,7 +245,7 @@ const HomePage = () => {
 							</span>
 						</div>
 
-						<div className="hidden md:flex items-center gap-6">
+						{/* <div className="hidden md:flex items-center gap-6">
 							<Link
 								href="#features"
 								className="text-sm hover:text-primary transition flex items-center gap-1"
@@ -274,7 +274,7 @@ const HomePage = () => {
 								<FileText className="h-4 w-4" />
 								Docs
 							</Link>
-						</div>
+						</div> */}
 
 						<div className="flex items-center gap-2">
 							<ThemeToggle />
@@ -286,10 +286,10 @@ const HomePage = () => {
 							>
 								Sign In
 							</Button>
-							<Button size="sm">
+							{/* <Button size="sm">
 								<Rocket className="h-4 w-4 mr-2" />
 								Get Started
-							</Button>
+							</Button> */}
 						</div>
 					</div>
 				</nav>

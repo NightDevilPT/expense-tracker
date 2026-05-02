@@ -3,14 +3,14 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { AccountsHeader } from "./_components/accounts-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useAccounts } from "@/components/context/accounts-context/accounts-context";
 import type { SortConfig } from "@/components/shared/data-table";
 import type { AccountType } from "@/lib/account-service/types";
-import ToggleView from "@/components/shared/toggle-view";
 import { AccountsTable } from "./_components/accounts-table";
 import { AccountsCards } from "./_components/accounts-cards";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { AccountsFormDialog } from "./_components/accounts-form-dialog";
 
 export function AccountsPage() {
 	const {
@@ -162,11 +162,12 @@ export function AccountsPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<div className="flex items-center justify-between">
-				<AccountsHeader />
-				{/* Hide ToggleView on mobile screens since only cards are shown */}
-				{!isMobileView && <ToggleView />}
-			</div>
+			<GenericPageHeader
+				title="Accounts"
+				subtitle="Manage your financial accounts"
+				showGridToggle={!isMobileView}
+				form={<AccountsFormDialog />}
+			/>
 			<div>
 				{showTableView ? (
 					<AccountsTable {...commonProps} />

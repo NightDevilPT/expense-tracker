@@ -11,10 +11,10 @@ import type {
 } from "@/lib/recurring-service/types";
 import { RecurringTable } from "./_components/recurring-table";
 import { UpcomingRecurringList } from "./_components/upcoming-recurring-list";
-import { RecurringHeader } from "./_components/recurring-header";
 import { RecurringSkeletons } from "./_components/recurring-skeletons";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { RecurringFormDialog } from "./_components/recurring-form-dialog";
 
 export default function RecurringPage() {
 	const {
@@ -354,9 +354,13 @@ export default function RecurringPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
-			<RecurringHeader />
-
+		<div className="container mx-auto space-y-6">
+			<GenericPageHeader
+				title="Recurring Transactions"
+				subtitle="Manage your recurring income and expenses"
+				showGridToggle={false}
+				form={<RecurringFormDialog />}
+			/>
 			{/* Simple Button Toggle */}
 			<div className="flex gap-2 border-b">
 				<button

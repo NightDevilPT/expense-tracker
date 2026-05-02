@@ -3,14 +3,14 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { BudgetsHeader } from "./_components/budgets-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useBudgets } from "@/components/context/budgets-context/budgets-context";
 import type { SortConfig } from "@/components/shared/data-table";
-import ToggleView from "@/components/shared/toggle-view";
 import type { BudgetPeriod } from "@/lib/budget-service/types";
 import { BudgetsTable } from "./_components/budgets-table";
 import { BudgetCards } from "./_components/budgets-cards";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { BudgetFormDialog } from "./_components/budgets-form-dialog";
 
 export function BudgetsPage() {
 	const {
@@ -166,10 +166,12 @@ export function BudgetsPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<div className="flex items-center justify-between">
-				<BudgetsHeader />
-				{!isMobileView && <ToggleView />}
-			</div>
+			<GenericPageHeader
+				title="Budgets"
+				subtitle="Manage your budget allocations and track spending"
+				showGridToggle={!isMobileView}
+				form={<BudgetFormDialog />}
+			/>
 			<div>
 				{showTableView ? (
 					<BudgetsTable {...commonProps} />

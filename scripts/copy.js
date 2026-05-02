@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const projectsRoot = path.join(__dirname, '..', 'prisma');
+const projectsRoot = path.join(__dirname, '..', 'components/pages/categories');
 const outputFile = path.join(__dirname, '..', 'source-code-dump.txt');
 
 // File extensions to include
-const includeExtensions = ['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.txt', '.css', '.html', '.prisma'];
+const includeExtensions = ['.tsx', '.js', '.jsx', '.json', '.md', '.txt', '.css', '.html', '.prisma'];
 // Directories to exclude
-const excludeDirs = ['node_modules', 'dist', '.git', 'build', 'coverage', '.vscode', '.json'];
+const excludeDirs = ['node_modules', 'dist', '.git', 'build', 'coverage', '.vscode', '.json', '.ts', '.sql'];
 // Files to exclude (by exact name)
 const excludeFiles = ['package-lock.json'];
 

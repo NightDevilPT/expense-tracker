@@ -5,11 +5,11 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { TagsTable } from "./_components/tags-table";
 import { TagsCards } from "./_components/tags-cards";
-import { TagsHeader } from "./_components/tags-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useTags } from "@/components/context/tags-context/tags-context";
 import type { SortConfig } from "@/components/shared/data-table";
-import ToggleView from "@/components/shared/toggle-view";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { TagsFormDialog } from "./_components/tags-form-dialog";
 
 export function TagsPage() {
 	const {
@@ -143,10 +143,12 @@ export function TagsPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<div className="flex items-center justify-between">
-				<TagsHeader />
-				{!isMobileView && <ToggleView />}
-			</div>
+			<GenericPageHeader
+				title="Tags"
+				subtitle="Manage your transaction tags"
+				showGridToggle={!isMobileView}
+				form={<TagsFormDialog />}
+			/>
 			<div>
 				{showTableView ? (
 					<TagsTable {...commonProps} />

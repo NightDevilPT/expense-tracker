@@ -115,8 +115,9 @@ export function LoginForm({
 
 		try {
 			const response = await requestOtp({ email });
+			console.log(response)
 
-			setOtpId(response.otpId);
+			setOtpId(response.otpId || "");
 			setStep("otp");
 			setSuccess(`Verification code sent to ${email}`);
 

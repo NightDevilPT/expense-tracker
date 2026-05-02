@@ -13,7 +13,7 @@ import type {
 	LoginOtpInput,
 } from "@/lib/user-service/validation";
 import { apiClient, ApiError } from "@/lib/api-client";
-import type { SafeUserProfile } from "@/lib/user-service/types";
+import type { OtpResponseData, SafeUserProfile } from "@/lib/user-service/types";
 import { ErrorCode } from "@/lib/response-service";
 
 // ============================================
@@ -29,7 +29,7 @@ interface AuthContextType {
 	error: string | null;
 	login: (data: LoginOtpInput) => Promise<void>;
 	logout: () => Promise<void>;
-	requestOtp: (data: RequestOtpInput) => Promise<void>;
+	requestOtp: (data: RequestOtpInput) => Promise<OtpResponseData>;
 	refreshUser: () => Promise<void>;
 	clearError: () => void;
 }
@@ -95,13 +95,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	}, [fetchUser]);
 
 	const requestOtp = useCallback(
-		async (data: RequestOtpInput): Promise<void> => {
+		async (data: RequestOtpInput): Promise<OtpResponseData> => {
 			setIsLoading(true);
 			setError(null);
 
 			try {
-				// ✅ apiClient.post returns ApiSuccessResponse
-				await apiClient.post("/auth/request-otp", data);
+				// apiClient.post returns ApiSuccessResponse<OtpResponseData>
+				const response = await apiClient.post<OtpResponseData>("/auth/request-otp", data);
+
+				// Return just the data portion since that's what the form needs
+				return response.data;
 			} catch (error) {
 				let errorMessage = "Failed to send OTP";
 
@@ -109,8 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					if (error.code === ErrorCode.BAD_REQUEST) {
 						errorMessage = error.message;
 					} else if (error.code === ErrorCode.TOO_MANY_REQUESTS) {
-						errorMessage =
-							"Too many requests. Please try again later.";
+						errorMessage = "Too many requests. Please try again later.";
 					} else {
 						errorMessage = error.message;
 					}

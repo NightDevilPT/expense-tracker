@@ -4,11 +4,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { AuditLogsTable } from "./_components/audit-logs-table";
-import { AuditLogsHeader } from "./_components/audit-logs-header";
 import { useAuditLogs } from "@/components/context/audit-logs-context/audit-logs-context";
 import type { SortConfig } from "@/components/shared/data-table";
 import type { EntityType } from "@/lib/audit-service/types";
 import { AuditAction } from "@/generated/prisma/enums";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
 
 export function AuditLogsPage() {
 	const {
@@ -111,7 +111,10 @@ export function AuditLogsPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<AuditLogsHeader />
+			<GenericPageHeader
+				title="Audit Logs"
+				subtitle="Track all system activity and changes"
+			/>
 			<div className="flex-1 overflow-auto min-h-0">
 				<AuditLogsTable
 					auditLogs={auditLogs}

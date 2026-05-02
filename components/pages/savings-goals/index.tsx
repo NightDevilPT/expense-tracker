@@ -3,14 +3,14 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { SavingsGoalsHeader } from "./_components/savings-goals-header";
 import { useTheme, IViewMode } from "@/components/context/theme-context";
 import { useSavingsGoals } from "@/components/context/savings-goals-context/savings-goals-context";
 import type { SortConfig } from "@/components/shared/data-table";
 import type { SavingsGoalStatus } from "@/lib/savings-goal-service/types";
-import ToggleView from "@/components/shared/toggle-view";
 import { SavingsGoalsTable } from "./_components/savings-goals-table";
 import { SavingsGoalsCards } from "./_components/savings-goals-cards";
+import GenericPageHeader from "@/components/shared/page-header/page-header";
+import { SavingsGoalFormDialog } from "./_components/savings-goal-form-dialog";
 
 export function SavingsGoalsPage() {
 	const {
@@ -193,10 +193,12 @@ export function SavingsGoalsPage() {
 
 	return (
 		<div className="h-full grid grid-rows-[auto_1fr]">
-			<div className="flex items-center justify-between">
-				<SavingsGoalsHeader />
-				{!isMobileView && <ToggleView />}
-			</div>
+			<GenericPageHeader
+				title="Savings Goals"
+				subtitle="Manage your savings goals"
+				showGridToggle={!isMobileView}
+				form={<SavingsGoalFormDialog />}
+			/>
 			<div className="px-1">
 				{showTableView ? (
 					<SavingsGoalsTable {...commonProps} />
